@@ -38,3 +38,6 @@ expr :
   |e1= expr ; DIV ; e2= expr {Ebinop (e1, Div,e2)}
   |e1= expr ; MODULO ; e2= expr {Ebinop (e1, Modulo,e2)}
   |LPAR; e=expr; RPAR {e}
+
+prog :
+	EOF {[]}

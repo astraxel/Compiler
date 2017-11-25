@@ -31,10 +31,10 @@ rule token = parse
 	
 	|"//" {try line_comment lexbuf; token lexbuf
 					with EndOfFile -> EOF}
-	|"/*" {try comment 1 lexbuf; token lexbuf
+	|"/*" {try comment lexbuf; token lexbuf
 					with EndOfFile -> EOF}
 					
-	|ident as i {try Hashtbl.find keywords i with Not_found -> IDENT i)
+	|ident as i {try Hashtbl.find keywords i with Not_found -> IDENT i)}
 	
 	|number as n {INTEGER (int_of_string n)}
 	
@@ -47,11 +47,11 @@ and line_comment = parse
 	|eof {raise EndOfFile}
 	|[^ '\n']* {line_comment lexbuf}	
 	
-and comment n = parse
-	|"*/" {if n>1 then comment (n-1) lexbuf }
-	|"/*" {comment (n+1) lexbuf }
+and comment = parse
+	|"*/" {()}
+	|"/*" {comment lexbuf; comment lexbuf }
 	|new_line {Lexing.new_line lexbuf; comment n lexbuf}
 	|eof {raise (Lexing_error "Commentaire non fermé")}
-	|_ {comment n lexbuf}
+	|_ {comment lexbuf}
 					
 
