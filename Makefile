@@ -1,6 +1,6 @@
 GENRATED = ast.cmi parser.mli parser.ml lexer.ml
 
-all: main clean
+all: main
 
 main : main.ml lexer.ml parser.ml
 	ocamlopt -o main main.ml
