@@ -6,15 +6,19 @@
 %}
 
 /* Déclaration des tokens */
-%token EOF ENDSTMT LET MUT COLON WHILE RETURN IF
-%token LCB RCB LPAR RPAR
-%token PLUS MINUS DIV TIMES MODULO  
+%token EOF LET MUT COLON WHILE RETURN IF
+%token LCB RCB LPAR RPAR DOT ENDSTMT
+%token PLUS MINUS DIV TIMES MODULO
+%token EQUAL DIFFERENT SUPERIOR SUPERIOR_EQUAL INFERIOR INFERIOR_EQUAL AND OR
+%token TRUE FALSE
 %token <int> INTEGER
 %token <string> IDENT
 
-
 /* Priorités et associativités des tokens */
 
+%left OR
+%left AND
+%nonassoc EQUAL_EQUAL DIFFERENT SUPERIOR SUPERIOR_EQUAL INFERIOR INFERIOR_EQUAL
 %left PLUS MINUS 
 %left TIMES DIV MODULO
 %nonassoc UMINUS
@@ -32,7 +36,18 @@
 expr :
   |i= INTEGER {Eint i}
   |ident = IDENT {Eident ident}
+  |Ebool = FALSE {Ebool false}
+  |Ebool = TRUE  {Ebool true}
+  |e1=expr , DOT , i=ident {Eattribute (e1,i)} 
   |MINUS, e=expr {Eunop (Minus, e)} %prec UMINUS 
+  |e1= expr , OR , e2= expr {Ebinop (e1,Or,e2)}
+  |e1= expr , AND , e2= expr {Ebinop (e1,And,e2)}
+  |e1= expr , INFERIOR_EQUAL , e2= expr {Ebinop (e1,Less_or_equal,e2)}
+  |e1= expr , INFERIOR , e2= expr {Ebinop (e1,Less,e2)}
+  |e1= expr , SUPERIOR_EQUAL , e2= expr {Ebinop (e1,Greater_or_equal,e2)}
+  |e1= expr , SUPERIOR , e2= expr {Ebinop (e1,Greater,e2)}
+  |e1= expr , DIFFERENT , e2= expr {Ebinop (e1,Not_equal,e2)}
+  |e1= expr , EQUAL_EQUAL , e2= expr {Ebinop (e1,Equal,e2)}
   |e1= expr , PLUS , e2= expr {Ebinop (e1,Plus,e2)}
   |e1= expr , MINUS , e2= expr {Ebinop (e1, Minus,e2)}
   |e1= expr , TIMES , e2= expr {Ebinop (e1, Times,e2)}
@@ -60,6 +75,7 @@ rule_if:
 return:
 	|e=expr {Some e}
 	|				{None}
+	;
 	
 affect_attributes:
 	|RCB {[]}
