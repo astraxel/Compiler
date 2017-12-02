@@ -6,8 +6,8 @@
 %}
 
 /* Déclaration des tokens */
-%token EOF LET MUT COLON WHILE RETURN IF
-%token LCB RCB LPAR RPAR DOT ENDSTMT
+%token EOF LET MUT COLON WHILE RETURN IF FN STRUCT
+%token LCB RCB LPAR RPAR DOT ENDSTMT AMPERSAND COMMA ARROW
 %token PLUS MINUS DIV TIMES MODULO
 %token EQUAL DIFFERENT SUPERIOR SUPERIOR_EQUAL INFERIOR INFERIOR_EQUAL AND OR
 %token TRUE FALSE
@@ -54,7 +54,7 @@ expr :
   |e1= expr , DIV , e2= expr {Ebinop (e1, Divide,e2)}
   |e1= expr , MODULO , e2= expr {Ebinop (e1, Modulo,e2)}
   |LPAR, e=expr, RPAR {e}
-  ;
+;
 
 stmt:
 	|ENDSTMT {()}
@@ -64,24 +64,77 @@ stmt:
 	|WHILE, e=expr, b=bloc {Swhile (e,b)}
 	|RETURN, r=return_value, ENDSTMT {Sreturn r}
 	|{rule_if}
-	;
+;
+
+
+return:
+	|e=expr {Some e}
+	|				{None}
+;
+	
+affect_attributes:
+	|RCB {[]}
+	|ident=i, COLON, e=expr, COMMA, v=affect_attributes {(i,e)::v}
+;
 	
 rule_if:
 	|IF,e=expr,b1=bloc,b2=bloc {Bif (e,b1,b2}
 	|IF,e=expr,b=bloc {Aif (e,b)}
 	|IF,e=expr,b=bloc,pif=rule_if {Iif (e,b,pif}
-	;
+;
 
-return:
-	|e=expr {Some e}
-	|				{None}
-	;
+bloc:
+	|LCB, l=l_stmt, RCB {Ubloc l}
+	|LCB, l=l_stmt, e=expr, RCB {Vbloc (l,e)}
+;
+
+l_stmt:
+	|s=stmt, l=l_stmt {s::l}
+	|									{[]}
+;
+
+typ:
+	|i=IDENT, t=typ {Tcons (i,t)}
+	|AMPERSAND, m=boption(MUT), t=typ {Tesp (b,t)}
+	|i=IDENT {Tid i}
+;
+
+argument:
+	|boption(MUT), i=IDENT, COLON, t=typ {(b,i,t)}
+;
+
+decl_fun:
+	|FN, i=IDENT, LPAR, l=l_arg, RPAR, t=dec_typ, b=bloc {{name = i;
+																												arguments = l;
+																												body=b;
+																												typ=t;}}
+;
+
+l_arg:
+	|a=argument, COMMA, l=l_arg {a::l}
+	|														{[]}
+;
+
+dec_typ:
+	|LPAR, ARROW, t=typ, RPAR {Some t}
+	|													{None}
+;
+
+dec_struct:
+	|STRUCT, i=IDENT, LCB, l=dec_attributes, RCB {{name=i;
+																								 attributes = l;}}
+;
+
+dec_attributes:
+	|i=IDENT, COLON, t=typ, COMMA, l=dec_attributes {(i,t)::l}
+	|																								{[]}
+;
 	
-affect_attributes:
-	|RCB {[]}
-	|ident=i, COLON, e=expr, v=affect_attributes {(i,e)::v}
-	;
-	
+dec:
+	|s = dec_struct {s}
+	|f = dec_fun {f}
+;
 	
 prog :
-	EOF {[]}
+	|d = dec, p=prog {d::p}
+	|EOF {[]}
