@@ -26,7 +26,7 @@ type expr =
   |Elen of expr
   |Eselect of expr * expr
   |Ecall of ident * expr list
-  |Evect of expr array
+  |Evect of expr list
   |Eprint of string
   |Ebloc of bloc
 

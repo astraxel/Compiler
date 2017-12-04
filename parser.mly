@@ -94,7 +94,7 @@ l_stmt:
 ;
 
 typ:
-	|i=IDENT, t=typ {Tcons (i,t)}
+	|i=IDENT, INFERIOR, t=typ, SUPERIOR {Tcons (i,t)}
 	|AMPERSAND, m=boption(MUT), t=typ {Tesp (b,t)}
 	|i=IDENT {Tid i}
 ;
