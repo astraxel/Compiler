@@ -67,7 +67,7 @@ rule token = parse
 	
 	|eof {EOF}
 	
-	|_ as c {try 
+	|[^ ' ' '\t' '\n' '/']* as c {try 
 						Hashtbl.find special_characters c
 					with
 						Not_found -> raise (Lexing_error ("Caractère interdit : "^(String.make 1 c.[0])))}
