@@ -7,8 +7,8 @@
 %}
 
 /* Déclaration des tokens */
-%token EOF LET MUT WHILE RETURN IF FN STRUCT
-%token LCB RCB LPAR RPAR DOT ENDSTMT AMPERSAND COMMA ARROW COLON
+%token EOF LET MUT WHILE RETURN IF FN STRUCT ELSE
+%token LCB RCB LPAR RPAR DOT ENDSTMT AMPERSAND COMMA ARROWFIRST COLON EM LB RB
 %token PLUS MINUS DIV TIMES MODULO
 %token EQUAL DIFFERENT SUPERIOR OR
 %token <bool> BOOL
@@ -40,7 +40,7 @@ expr :
   |b=BOOL {Ebool b}
   |e1=expr , DOT , i=ident {Eattribute (e1,i)} 
   |MINUS, e=expr {Eunop (Minus, e)} %prec UMINUS 
-  |e1= expr , OR , e2= expr {Ebinop (e1,Or,e2)}
+  |e1= expr , OR, OR, e2= expr {Ebinop (e1,Or,e2)}
   |e1= expr , AND , e2= expr {Ebinop (e1,And,e2)}
   |e1= expr , INFERIOR, EQUAL , e2= expr {Ebinop (e1,Less_or_equal,e2)}
   |e1= expr , INFERIOR , e2= expr {Ebinop (e1,Less,e2)}
@@ -78,9 +78,9 @@ affect_attributes:
 ;
 	
 rule_if:
-	|IF,e=expr,b1=bloc,b2=bloc {Bif (e,b1,b2}
+	|IF,e=expr,b1=bloc, ELSE, b2=bloc {Bif (e,b1,b2}
 	|IF,e=expr,b=bloc {Aif (e,b)}
-	|IF,e=expr,b=bloc,pif=rule_if {Iif (e,b,pif}
+	|IF,e=expr,b=bloc, ELSE, pif=rule_if {Iif (e,b,pif}
 ;
 
 bloc:
@@ -116,7 +116,7 @@ l_arg:
 ;
 
 dec_typ:
-	|LPAR, ARROW, t=typ, RPAR {Some t}
+	|LPAR, ARROWFIRST, SUPERIOR, t=typ, RPAR {Some t}
 	|													{None}
 ;
 
