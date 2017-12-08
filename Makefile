@@ -1,24 +1,40 @@
-GENRATED = ast.cmi parser.mli parser.ml lexer.ml
+CMO=lexer.cmo parser.cmo main.cmo
+GENERATED = lexer.ml parser.ml parser.mli
+FLAGS=-annot -g
 
 all: main
-
-main : main.ml lexer.ml parser.ml
-	ocamlopt -o main main.ml
-
-ast.cmi: ast.mli
-	ocamlc -c ast.mli
-
-parser.mli parser.ml: parser.mly ast.cmi
-	menhir --infer --explain parser.mly
+	./main
 
 
-lexer.ml: lexer.mll parser.mli
-	ocamllex lexer.mll
+main: $(CMO)
+	ocamlc $(FLAGS) -o $@ nums.cma $(CMO)
 
-.PHONY: clean mrproper
+.SUFFIXES: .mli .ml .cmi .cmo .mll .mly
+
+.mli.cmi:
+	ocamlc $(FLAGS) -c  $<
+
+.ml.cmo:
+	ocamlc $(FLAGS) -c $<
+
+.mll.ml:
+	ocamllex $<
+
+.mly.ml:
+	menhir -v $<
+
+.mly.mli:
+	menhir -v $<
 
 clean:
-	rm -rf parser.mli parser.ml lexer.ml *.o *.cmi *.cmx
+	rm -f *.cm[io] *.o *.annot *~ mini-python $(GENERATED)
+	rm -f parser.output parser.automaton
 
-mrproper: clean 
-	rm -rf main
+.depend depend:$(GENERATED)
+	rm -f .depend
+	ocamldep *.ml *.mli > .depend
+
+include .depend
+
+
+

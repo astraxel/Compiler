@@ -8,39 +8,39 @@
 	exception EndOfFile
 	
 	let keywords = Hashtbl.create 10
-	List.iter (fun x -> Hashtbl.add (k,t) -> Hashtbl.add keywords k t) [("else", ELSE);
-																																			("false", BOOL false);
-																																			("let", LET);
-																																			("mut", MUT);
-																																			("while", WHILE);
-																																			("return", RETURN);
-																																			("if", IF);
-																																			("struct", STRUCT);
-																																			("fn",FN);
-																																			(true, BOOL true);]
-	let special_carachters = Hashtbl.create 20
-	List.iter (fun x -> Hashtbl.add (k,t) -> Hashtbl.add special_characters k t) [('{',LCB);
-																																								('}',RCB);
-																																								('(',LPAR);
-																																								(')',RPAR);
-																																								('.',DOT);
-																																								(';',ENDSTMT);
-																																								('&', AMPERSAND);
-																																								(',', COMMA);
-																																								('-',ARROWFIRST);
-																																								(':',COLON);
-																																								('+',PLUS);
-																																								('-',MOINS);
-																																								('/',DIV);
-																																								('*',TIMES);
-																																								('%',MODULO);
-																																								('=',EQUAL);
-																																								('>',SUPERIOR);
-																																								('<',INFERIOR);
-																																								('|',OR);
-																																								('!', EM);
-																																								('[',LB);
-																																								(']',RB);]
+	let () = List.iter (fun (k,t) -> Hashtbl.add keywords k t) [("else", ELSE);
+																															("false", BOOL false);
+																															("let", LET);
+																															("mut", MUT);
+																															("while", WHILE);
+																															("return", RETURN);
+																															("if", IF);
+																															("struct", STRUCT);
+																															("fn",FN);
+																															("true", BOOL true);]
+	let special_characters = Hashtbl.create 20
+	let () = List.iter (fun (k,t) -> Hashtbl.add special_characters k t) [('{',LCB);
+																																				('}',RCB);
+																																				('(',LPAR);
+																																				(')',RPAR);
+																																				('.',DOT);
+																																				(';',ENDSTMT);
+																																				('&', AMPERSAND);
+																																				(',', COMMA);
+																																				('-',ARROWFIRST);
+																																				(':',COLON);
+																																				('+',PLUS);
+																																				('-',MINUS);
+																																				('/',DIV);
+																																				('*',TIMES);
+																																				('%',MODULO);
+																																				('=',EQUAL);
+																																				('>',SUPERIOR);
+																																				('<',INFERIOR);
+																																				('|',OR);
+																																				('!', EM);
+																																				('[',LB);
+																																				(']',RB);]
 	
 }
 
@@ -53,7 +53,6 @@ let ident = letter (letter | digit | '_')*
 
 let character = [^  '"'] | '\\' | '\"' | '\n'
 
-let chain = '"' character* '"'
 
 rule token = parse
 	|[' ' '\t']* {token lexbuf}
@@ -64,9 +63,11 @@ rule token = parse
 	|"/*" {try comment lexbuf; token lexbuf
 					with EndOfFile -> EOF}
 					
-	|ident as i {try Hashtbl.find keywords i with Not_found -> IDENT i)}
+	|ident as i {try Hashtbl.find keywords i with Not_found -> IDENT i}
 	
 	|number as n {INTEGER (int_of_string n)}
+	
+	|'"' (character* as s) '"' {CHAIN s}
 	
 	|eof {EOF}
 	
@@ -83,7 +84,7 @@ and line_comment = parse
 and comment = parse
 	|"*/" {()}
 	|"/*" {comment lexbuf; comment lexbuf }
-	|new_line {Lexing.new_line lexbuf; comment n lexbuf}
+	|new_line {Lexing.new_line lexbuf; comment lexbuf}
 	|eof {raise (Lexing_error "Commentaire non fermé")}
 	|_ {comment lexbuf}
 					

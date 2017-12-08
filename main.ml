@@ -35,7 +35,7 @@ let rec print_typ = function
                   print_typ t; print_string " >"
   |Tesp (m,t) -> print_string "& ";
                  print_mut m;
-                 print_typ
+                 print_typ t
 
 let print_arg a=
   let m,i,t=a in
@@ -51,14 +51,14 @@ let rec print_expr_list = function
            print_string ", ";
            print_expr_list q
 
-let rec print_expr e = match e with
+and print_expr e = match e with
   |Eint n -> print_int n
   |Ebool b -> print_string (if b then "true" else "false")
   |Eident i -> print_string i
   |Ebinop (e1,b,e2) -> print_expr e1;
                        print_binop b;
                        print_expr e2
-  |Eunop (u,e1) -> print_binop u;
+  |Eunop (u,e1) -> print_unop u;
                    print_expr e
   |Eattribute (e1,i) -> print_expr e;
                         print_string ".";
@@ -144,7 +144,7 @@ and print_if = function
                      print_bloc b1;
                      print_string "\nelse";
                      print_bloc b2
-  |Pif (e,b1,p) ->  print_string "if ";
+  |Iif (e,b1,p) ->  print_string "if ";
                     print_expr e;
                     print_string "\n";
                     print_bloc b1;
@@ -159,7 +159,7 @@ let rec print_att_dec = function
                if q <> [] then print_string ", ";
                print_att_dec q
                               
-let print_dec_struct s =
+let print_dec_struct (s:Ast.decl_struct) =
   print_string "struct ";
   print_string s.name;
   print_string "{";
@@ -175,6 +175,7 @@ let rec print_args_list = function
 let print_dec_fun f=
   print_string "fn ";
   print_string f.name;
+  print_string "(";
   print_args_list f.arguments;
   begin
     match f.typ with
@@ -186,13 +187,34 @@ let print_dec_fun f=
   print_bloc f.body
 
 let print_dec = function
-  |Ddecl_fun f -> print_de_fun f
+  |Ddecl_fun f -> print_dec_fun f
   |Ddecl_struct s-> print_dec_struct s
 
 let rec print_prog = function
   |[] -> ()
   |(d::q) -> print_dec d;
              print_prog q
+             
 
-let _ = assert false (*TODO*)
+(* Appels au parser et lexer *)
+
+open Format
+open Lexing
+   
+
+let source = "test.rs"
+
+let () =
+  let c = open_in source in
+  let lb = Lexing.from_channel c in
+  try
+    let p = Parser.prog Lexer.token lb in
+    close_in c;
+    print_prog p;
+    exit 1
+  with
+    _ -> print_string ("error"); exit 0
+  
+  
+             
    
