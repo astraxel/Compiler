@@ -202,19 +202,30 @@ open Format
 open Lexing
    
 
-let source = "test.rs"
+let parse_only = ref false
+               
 
-let () =
+let parse source =
   let c = open_in source in
   let lb = Lexing.from_channel c in
   try
     let p = Parser.prog Lexer.token lb in
     close_in c;
     print_prog p;
-    exit 1
+    exit 0
   with
-    _ -> print_string ("error"); exit 0
+  |e -> print_string "error\n"; exit 1
   
   
              
-   
+let main () =
+  Arg.parse
+    ["--parse-only", Arg.Set parse_only, "Option for parsing only";
+    ]
+    parse  
+    ""  
+;;
+  
+main ()
+
+       

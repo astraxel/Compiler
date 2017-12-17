@@ -51,7 +51,7 @@ let number = digit+
 let letter = ['a'-'z' 'A'-'Z']
 let ident = letter (letter | digit | '_')*
 
-let character = [^  '"'] | '\\' | '\"' | '\n'
+let character = [^  '"'] | "\"" | "\\" | '\n'
 
 
 rule token = parse

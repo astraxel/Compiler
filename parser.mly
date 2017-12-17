@@ -18,6 +18,8 @@
 
 /* Priorités et associativités des tokens */
 
+
+%nonassoc ERROR
 %left EQUAL
 %left OR
 %left AND
@@ -39,9 +41,6 @@
 /* Règles de grammaire */
 
 expr :
-  |i= INTEGER {Eint i}
-  |ident = IDENT {Eident ident}
-  |b=BOOL {Ebool b}
   |e1=expr ; DOT ; i=IDENT {Eattribute (e1,i)} 
   |MINUS; e=expr {Eunop (Minus, e)} %prec UMINUS 
   |e1= expr; EQUAL; e2=expr {Ebinop (e1,Equal,e2)}
@@ -59,6 +58,29 @@ expr :
   |e1= expr ; DIV ; e2= expr {Ebinop (e1, Divide,e2)}
   |e1= expr ; MODULO ; e2= expr {Ebinop (e1, Modulo,e2)}
   |LPAR; e=expr; RPAR {e}
+  
+  |e1= expr ; DOT ; i=IDENT; LPAR ; RPAR  {if i="len" then Elen (e1) else raise (Parsing_error "error")} /*
+rajouter les erreurs en temps voulu */
+	|e1=expr; DOT; i=IDENT {Eattribute (e,i)}
+  |e1= expr ; LB ; e2=expr ; RB {Eselect (e1, e2)}
+  |i= IDENT ; LPAR ; e=l_expr ; RPAR  {Ecall (i, e)}
+  |b= bloc {Ebloc b}
+  |i=IDENT ; EM ; LB ; e=l_expr ; RB {if i="vec" then Evect (e) else raise (Parsing_error "error")}
+	|i=IDENT ; EM ; LPAR ; c=CHAIN ; RPAR {if i="print" then Eprint (c) else raise (Parsing_error "error")}
+	
+  |i= INTEGER {Eint i}
+  |ident = IDENT {Eident ident}
+  |b=BOOL {Ebool b}
+  
+	|s = stmt {raise (Parsing_error "Expected an expression, not a statement. Maybe you forgot {}")} %prec ERROR
+	|d= dec {raise (Parsing_error "Cannot declare a function or a structure within a declaration.")} %prec ERROR
+	| {raise (Parsing_error "expected an expression")}
+	
+l_expr:
+  |e=expr; COMMA; l=l_expr {e::l}
+  |e=expr									 {[e]}
+  |                 			 {[]}
+
 
 
 stmt:
@@ -69,6 +91,8 @@ stmt:
 	|WHILE; e=expr; b=bloc {Swhile (e,b)}
 	|RETURN; r=return; ENDSTMT {Sreturn r}
 	|i = rule_if {Sif i}
+	|d= dec {raise (Parsing_error "Cannot declare a function or a structure within a declaration.")} %prec ERROR
+	| {raise (Parsing_error "expected a statement")}
 
 
 
@@ -80,18 +104,23 @@ return:
 affect_attributes:
 	|RCB {[]}
 	|i=IDENT; COLON; e=expr; COMMA; v=affect_attributes {(i,e)::v}
+	| {raise (Parsing_error "} missing after structure attributes assignement")}
 
 	
 rule_if:
 	|IF; e=expr; b1=bloc; ELSE; b2=bloc {Bif (e,b1,b2)}
 	|IF; e=expr; b=bloc {Aif (e,b)}
 	|IF; e=expr; b=bloc;  ELSE; pif=rule_if {Iif (e,b,pif)}
+	|d= dec {raise (Parsing_error "Cannot declare a function or a structure within a declaration.")} %prec ERROR
+	| {raise (Parsing_error "expected a string")}
 
 
 bloc:
 	|LCB; r=l_stmt {let l,t=r in match t with
 												|None -> Ubloc l
 												|Some e -> Vbloc (l,e)}
+	|d= dec {raise (Parsing_error "Cannot declare a function or a structure within a declaration.")} %prec ERROR
+	| {raise (Parsing_error "expected a bloc")} %prec ERROR
 
 
 l_stmt:
@@ -115,7 +144,7 @@ dec_fun:
 																												arguments = l;
 																												body=b;
 																												typ=t;}}
-
+	| {raise (Parsing_error "expected a declaration")}
 
 l_arg:
 	|a=argument; COMMA; l=l_arg {a::l}
@@ -130,6 +159,7 @@ dec_typ:
 dec_struct:
 	|STRUCT; i=IDENT; LCB; l=dec_attributes; RCB {{name=i;
 																								 attributes = l;}}
+	| {raise (Parsing_error "expected a declaration")}
 
 
 dec_attributes:
@@ -140,6 +170,7 @@ dec_attributes:
 dec:
 	|s = dec_struct {Ddecl_struct s}
 	|f = dec_fun {Ddecl_fun f}
+	| {raise (Parsing_error "expected a declaration")}
 
 	
 prog :

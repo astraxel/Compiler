@@ -3,7 +3,7 @@ GENERATED = lexer.ml parser.ml parser.mli
 FLAGS=-annot -g
 
 all: main
-	./main
+	./main "test.rs"
 
 
 main: $(CMO)
