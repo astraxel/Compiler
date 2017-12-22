@@ -86,8 +86,8 @@ l_expr:
 stmt:
 	|ENDSTMT {Unit}
 	|e=expr; ENDSTMT {Sexpr e}
-	|LET; m=boption(MUT); ident=IDENT; EQUAL; e=expr; ENDSTMT {Saff (m,ident,e)}
-	|LET; m=boption(MUT); name=IDENT; EQUAL; structure=IDENT; LCB; l=affect_attributes; ENDSTMT {Sobj (m,name,structure,l)}
+	|LET; m=boption(MUT); ident=IDENT; EQUAL; e=expr; ENDSTMT {Saff (m,ident,e)} 
+	|LET; m=boption(MUT); name=IDENT; EQUAL; structure=IDENT; LCB; l=affect_attributes; ENDSTMT {Sobj (m,name,structure,l)} 
 	|WHILE; e=expr; b=bloc {Swhile (e,b)}
 	|RETURN; r=return; ENDSTMT {Sreturn r}
 	|i = rule_if {Sif i}

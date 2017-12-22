@@ -1,1 +1,1 @@
-fn main () {print ! ("" yolo")}
+fn main() { let a = 1 + { 2 }; }
