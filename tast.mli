@@ -51,7 +51,7 @@ and tbloc =
    |TUbloc of tstmt list
    |TVbloc of tstmt list * texpr
 
-and targument = mut * ident * typ
+and targument = mut * tident * typ
 
 and tfichier =  tdecl list
 
