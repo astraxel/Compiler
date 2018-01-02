@@ -1,6 +1,6 @@
 type binop = Equal | Not_equal | Less | Greater | Less_or_equal
              | Greater_or_equal | And | Or |Plus | Minus | Times | Divide | Modulo
-                                                                                                                             
+                                                                                    
 type unop = Not | Minus | Deref | SharedBorrow | MutBorrow
 
 type ident = string
@@ -57,7 +57,7 @@ and tfichier =  tdecl list
 
 and tdecl_struct = {
    name : ident ;
-   attributes : (tident*typ) list;
+   attributes : (ident*typ) list;
 }
 
 and tdecl_fun = {
