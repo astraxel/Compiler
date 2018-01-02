@@ -26,7 +26,7 @@
 %nonassoc EQUAL_EQUAL DIFFERENT SUPERIOR SUPERIOR_EQUAL INFERIOR INFERIOR_EQUAL
 %left PLUS MINUS 
 %left TIMES DIV MODULO
-%nonassoc UMINUS AMPERSAND EM UTIMES
+%nonassoc UMINUS EM DEREF BORROW
 %nonassoc ELEMENT
 %nonassoc DOT
 
@@ -41,8 +41,13 @@
 /* Règles de grammaire */
 
 expr :
-  |e1=expr ; DOT ; i=IDENT {Eattribute (e1,i)} 
-  |MINUS; e=expr {Eunop (Minus, e)} %prec UMINUS 
+  |e1=expr ; DOT ; i=IDENT {Eattribute (e1,i)}
+   
+  |MINUS; e=expr {Eunop (Minus, e)} %prec UMINUS
+  |EM; e=expr {Eunop (Not, e)}
+  |TIMES; e=expr {Eunop (Deref,e)} %prec DEREF
+  |AMPERSAND; m=boption(MUT); e=expr {Eunop ((if m then MutBorrow else SharedBorrow), e)} %prec BORROW
+   
   |e1= expr; EQUAL; e2=expr {Ebinop (e1,Equal,e2)}
   |e1= expr ; OR; OR; e2= expr {Ebinop (e1,Or,e2)}
   |e1= expr ; AMPERSAND; AMPERSAND; e2= expr {Ebinop (e1,And,e2)} %prec AND

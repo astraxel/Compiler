@@ -1,8 +1,9 @@
 
 
-type binop = Equal | Not_equal | Less | Greater | Less_or_equal | Greater_or_equal | And | Or |Plus | Minus | Times | Divide | Modulo
+type binop = Equal | Not_equal | Less | Greater | Less_or_equal
+             | Greater_or_equal | And | Or |Plus | Minus | Times | Divide | Modulo
                                                                                                                              
-type unop = Not | Minus
+type unop = Not | Minus | Deref | SharedBorrow | MutBorrow
 
 type ident = string
 
