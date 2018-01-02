@@ -10,7 +10,7 @@ type tident = ident * int
 type mut = bool
 
 type typ = 
-   Tbool | Tint | Tunit | Tstruct of tident | Tvec of typ | Tref of mut*int
+   Tbool | Tint | Tunit | Tstruct of ident | Tvec of typ | Tref of mut*int
 
  
 type tdecl =
@@ -20,8 +20,8 @@ type tdecl =
 and tstmt =
    | TUnit of unit
    | TSexpr of texpr
-   | TSaff of mut * ident * texpr (* pas sur de moi *)
-   | TSobj of mut * ident * (ident*texpr) list (*pas sur de moi *)
+   | TSaff of mut * tident * texpr (* pas sur de moi *)
+   | TSobj of mut * tident * ident * (ident*texpr) list (*pas sur de moi *)
    | TSwhile of texpr * tbloc 
    | TSreturn of texpr option
    | TSif of tpif (* pif = if, mais c'est réservé *)
