@@ -146,13 +146,13 @@ and print_if = function
                      print_expr e;
                      print_string "\n";
                      print_bloc b1;
-                     print_string "\nelse";
+                     print_string "else";
                      print_bloc b2
   |Iif (e,b1,p) ->  print_string "if ";
                     print_expr e;
                     print_string "\n";
                     print_bloc b1;
-                    print_string "\nelse";
+                    print_string "else";
                     print_if p
 
 let rec print_att_dec = function
@@ -207,6 +207,26 @@ open Lexing
    
 
 let parse_only = ref false
+
+let print_pos file line startpos endpos=
+  print_string "File \"";
+  print_string file;
+  print_string "\", line ";
+  print_int line; (*lb.lex_curr_p.pos_lnum;*)
+  print_string ", character ";
+  print_int startpos; (*(lb.lex_curr_p.pos_cnum -lb.lex_curr_p.pos_bol);*)
+  begin
+    match endpos with
+    |Some i ->print_string "-";
+              print_int i
+    |None -> ()
+  end;
+  print_string ":\n"
+            
+
+let print_pos_from_lexbuf lb=
+  print_pos lb.lex_curr_p.pos_fname lb.lex_curr_p.pos_lnum
+  (lb.lex_curr_p.pos_cnum -lb.lex_curr_p.pos_bol) None
                
 
 let parse source =
@@ -218,21 +238,18 @@ let parse source =
     print_prog p;
     exit 0
   with
-  |Lexer.Lexing_error s -> print_string "Lexing error : ";
-                           print_string s;
-                           print_string "\n";
-                           exit 1
-  |Parser.Error -> print_string "File \"";
-                   print_string source;
-                   print_string "\", line ";
-                   print_int lb.lex_curr_p.pos_lnum;
-                   print_string ", character ";
-                   print_int (lb.lex_curr_p.pos_cnum -lb.lex_curr_p.pos_bol);
-                   print_string ":\nsyntax error\n";
-                   exit 1
+  |Lexer.Lexing_error s ->
+    print_pos_from_lexbuf lb;
+    print_string s;
+    print_string "\n";
+    exit 1
+  |Parser.Error ->
+    print_pos_from_lexbuf lb;
+    print_string "Erreur de syntaxe\n";
+    exit 1
+
+
   
-  
-             
 let main () =
   Arg.parse
     ["--parse-only", Arg.Set parse_only, "Option for parsing only";
