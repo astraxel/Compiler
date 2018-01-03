@@ -112,6 +112,7 @@ return:
 affect_attributes:
 	|RCB {[]}
 	|i=IDENT; COLON; e=expr; COMMA; v=affect_attributes {(i,e)::v}
+	|i=IDENT; COLON; e=expr; RCB {[(i,e)]}
 
 	
 rule_if:
@@ -150,11 +151,12 @@ dec_fun:
 
 l_arg:
 	|a=argument; COMMA; l=l_arg {a::l}
+	|a=argument                 {[a]}
 	|														{[]}
 
 
 dec_typ:
-	|LPAR; ARROW; t=typ; RPAR {Some t}
+	|ARROW; t=typ {Some t}
 	|												  {None}
 
 
