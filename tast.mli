@@ -18,7 +18,7 @@ type tdecl =
    | TDdecl_struct of tdecl_struct
 
 and tstmt =
-   | TUnit of unit
+   | TSUnit
    | TSexpr of texpr
    | TSaff of mut * tident * texpr (* pas sur de moi *)
    | TSobj of mut * tident * ident * (ident*texpr) list (*pas sur de moi *)
