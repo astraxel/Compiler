@@ -3,7 +3,6 @@
 %{
 	open Ast
 	exception Parsing_error of string
-
 %}
 
 /* Déclaration des tokens */
@@ -42,7 +41,12 @@
 
 /* Règles de grammaire */
 
-expr :   
+expr :
+	|e=vexpr {{expr = e;
+	           startpos = $startpos;
+	           endpos = $endpos;}}
+
+vexpr :   
   |MINUS; e=expr {Eunop (UMinus, e)} %prec UMINUS
   |EM; e=expr {Eunop (Not, e)}
   |TIMES; e=expr {Eunop (Deref,e)} %prec DEREF
@@ -50,7 +54,7 @@ expr :
    
   |e1= expr; b=binop; e2=expr {Ebinop (e1,b,e2)}
 
-  |LPAR; e=expr; RPAR {e}
+  |LPAR; e=vexpr; RPAR {e}
   
 	|e=expr; DOT; i=IDENT {Eattribute (e,i)}
   |e1= expr ; DOT ; i=IDENT; LPAR ; RPAR  {if i="len" then Elen (e1) else raise (Parsing_error "error")} /*
@@ -173,3 +177,4 @@ dec:
 prog :
 	|d = dec; p=prog {d::p}
 	|EOF {[]}
+

@@ -39,7 +39,12 @@
 																																				('!',EM);
 																																				('[',LB);
 																																				(']',RB);]
-	
+	let next_line lexbuf =
+		let pos = lexbuf.lex_curr_p in
+		lexbuf.lex_curr_p <-
+		  { pos with pos_bol = lexbuf.lex_curr_pos;
+		             pos_lnum = pos.pos_lnum + 1
+		  }
 }
 
 let new_line = '\n'
@@ -55,7 +60,7 @@ let space = [' ' '\t']*
 
 rule token = parse
 	|[' ' '\t']* {token lexbuf}
-	|new_line {Lexing.new_line lexbuf; token lexbuf}
+	|new_line {next_line lexbuf; token lexbuf}
 	
 	|"//" {try line_comment lexbuf; token lexbuf
 					with EndOfFile -> EOF}
@@ -86,14 +91,14 @@ rule token = parse
 						Not_found -> raise (Lexing_error ("Caractère interdit : "^(String.make 1 c)))}
 					
 and line_comment = parse
-	|new_line {Lexing.new_line lexbuf}
+	|new_line {next_line lexbuf}
 	|eof {raise EndOfFile}
 	|[^ '\n']* {line_comment lexbuf}	
 	
 and comment = parse
 	|"*/" {()}
 	|"/*" {comment lexbuf; comment lexbuf }
-	|new_line {Lexing.new_line lexbuf; comment lexbuf}
+	|new_line {next_line lexbuf; comment lexbuf}
 	|eof {raise (Lexing_error "Commentaire non fermé")}
 	|_ {comment lexbuf}
 					

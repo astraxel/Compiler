@@ -1,5 +1,3 @@
-
-
 type binop = Equal | Not_equal | Less | Greater | Less_or_equal
              | Greater_or_equal | And | Or |Plus | Minus | Times | Divide | Modulo | Affect
                                                                                                                              
@@ -16,8 +14,13 @@ type typ =
          
 type argument = mut * ident * typ
 
+type pos = Lexing.position
+              
+type expr = {expr : vexpr;
+             startpos : pos;
+             endpos : pos;}
                     
-type expr =
+and vexpr =
   |Eint of int
   |Ebool of bool
   |Eident of ident

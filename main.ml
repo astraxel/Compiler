@@ -54,8 +54,8 @@ let rec print_expr_list = function
   |a::q -> print_expr a;
            print_string ", ";
            print_expr_list q
-
-and print_expr e = match e with
+          
+and print_expr e = match e.expr with
   |Eint n -> print_int n
   |Ebool b -> print_string (if b then "true" else "false")
   |Eident i -> print_string i
@@ -63,7 +63,7 @@ and print_expr e = match e with
                        print_binop b;
                        print_expr e2
   |Eunop (u,e1) -> print_unop u;
-                   print_expr e
+                   print_expr e1
   |Eattribute (e1,i) -> print_expr e;
                         print_string ".";
                         print_string i
@@ -218,7 +218,18 @@ let parse source =
     print_prog p;
     exit 0
   with
-  |e -> print_string "error\n"; exit 1
+  |Lexer.Lexing_error s -> print_string "Lexing error : ";
+                           print_string s;
+                           print_string "\n";
+                           exit 1
+  |Parser.Error -> print_string "File \"";
+                   print_string source;
+                   print_string "\", line ";
+                   print_int lb.lex_curr_p.pos_lnum;
+                   print_string ", character ";
+                   print_int (lb.lex_curr_p.pos_cnum -lb.lex_curr_p.pos_bol);
+                   print_string ":\nsyntax error\n";
+                   exit 1
   
   
              
