@@ -25,20 +25,18 @@
 																																				(')',RPAR);
 																																				('.',DOT);
 																																				(';',ENDSTMT);
-																																				('&', AMPERSAND);
-																																				(',', COMMA);
-																																				('-',ARROWFIRST);
+																																				('&',BORROW);
+																																				(',',COMMA);
 																																				(':',COLON);
 																																				('+',PLUS);
 																																				('-',MINUS);
 																																				('/',DIV);
 																																				('*',TIMES);
 																																				('%',MODULO);
-																																				('=',EQUAL);
+																																				('=',AFFECT);
 																																				('>',SUPERIOR);
 																																				('<',INFERIOR);
-																																				('|',OR);
-																																				('!', EM);
+																																				('!',EM);
 																																				('[',LB);
 																																				(']',RB);]
 	
@@ -53,6 +51,7 @@ let ident = letter (letter | digit | '_')*
 
 let character = [^  '"' '\\'] | "\\\"" | "\\\\" | "\\n"
 
+let space = [' ' '\t']*
 
 rule token = parse
 	|[' ' '\t']* {token lexbuf}
@@ -70,6 +69,16 @@ rule token = parse
 	|'"' (character* as s) '"' {CHAIN s}
 	
 	|eof {EOF}
+	
+	|"||" {OR}
+	|"&&" {AND}
+	
+	|"<=" {INFERIOR_EQUAL}
+	|">=" {SUPERIOR_EQUAL}
+	|"==" {EQUAL}
+	|"!=" {DIFFERENT}
+	
+	|"->" {ARROW}
 	
 	|_ as c {try 
 						Hashtbl.find special_characters c

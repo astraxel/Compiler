@@ -4,7 +4,7 @@ open Ast
 
 let print_binop b=
   print_string (match b with
-                |Equal -> "="
+                |Equal -> "=="
                 |Not_equal -> "!="
                 |Less -> "<"
                 |Greater -> ">"
@@ -17,12 +17,16 @@ let print_binop b=
                 |Times -> "*"
                 |Divide -> "/"
                 |Modulo -> "%"
+                |Affect -> "="
                )
 
 let print_unop u=
   print_string (match u with
                 |Not -> "!"
-                |Minus -> "-"
+                |UMinus -> "-"
+                |Deref -> "*"
+                |SharedBorrow -> "& mut"
+                |MutBorrow -> "&"
                )
 
 let print_mut = function

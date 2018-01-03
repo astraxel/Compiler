@@ -8,9 +8,12 @@
 
 /* Déclaration des tokens */
 %token EOF LET MUT WHILE RETURN IF FN STRUCT ELSE
-%token LCB RCB LPAR RPAR DOT ENDSTMT AMPERSAND COMMA ARROWFIRST COLON EM LB RB
+%token LCB RCB LPAR RPAR DOT ENDSTMT COMMA ARROW COLON LB RB
+%token BORROW EM
 %token PLUS MINUS DIV TIMES MODULO
-%token EQUAL SUPERIOR OR INFERIOR
+%token OR AND
+%token EQUAL SUPERIOR INFERIOR SUPERIOR_EQUAL INFERIOR_EQUAL DIFFERENT
+%token AFFECT
 %token <bool> BOOL
 %token <int> INTEGER
 %token <string> IDENT
@@ -19,15 +22,14 @@
 /* Priorités et associativités des tokens */
 
 
-%nonassoc ERROR
-%left EQUAL
+%left AFFECT
 %left OR
 %left AND
-%nonassoc EQUAL_EQUAL DIFFERENT SUPERIOR SUPERIOR_EQUAL INFERIOR INFERIOR_EQUAL
+%nonassoc EQUAL SUPERIOR INFERIOR SUPERIOR_EQUAL INFERIOR_EQUAL DIFFERENT
 %left PLUS MINUS 
 %left TIMES DIV MODULO
 %nonassoc UMINUS EM DEREF BORROW
-%nonassoc ELEMENT
+%nonassoc LB
 %nonassoc DOT
 
 /* Point d'entrée de la grammaire */
@@ -40,34 +42,20 @@
 
 /* Règles de grammaire */
 
-expr :
-  |e1=expr ; DOT ; i=IDENT {Eattribute (e1,i)}
-   
-  |MINUS; e=expr {Eunop (Minus, e)} %prec UMINUS
+expr :   
+  |MINUS; e=expr {Eunop (UMinus, e)} %prec UMINUS
   |EM; e=expr {Eunop (Not, e)}
   |TIMES; e=expr {Eunop (Deref,e)} %prec DEREF
-  |AMPERSAND; m=boption(MUT); e=expr {Eunop ((if m then MutBorrow else SharedBorrow), e)} %prec BORROW
+  |BORROW; m=boption(MUT); e=expr {Eunop ((if m then MutBorrow else SharedBorrow), e)}
    
-  |e1= expr; EQUAL; e2=expr {Ebinop (e1,Equal,e2)}
-  |e1= expr ; OR; OR; e2= expr {Ebinop (e1,Or,e2)}
-  |e1= expr ; AMPERSAND; AMPERSAND; e2= expr {Ebinop (e1,And,e2)} %prec AND
-  |e1= expr ; INFERIOR; EQUAL ; e2= expr {Ebinop (e1,Less_or_equal,e2)} %prec INFERIOR_EQUAL
-  |e1= expr ; INFERIOR ; e2= expr {Ebinop (e1,Less,e2)}
-  |e1= expr ; SUPERIOR; EQUAL ; e2= expr {Ebinop (e1,Greater_or_equal,e2)} %prec SUPERIOR_EQUAL
-  |e1= expr ; SUPERIOR ; e2= expr {Ebinop (e1,Greater,e2)}
-  |e1= expr ; EM; EQUAL ; e2= expr {Ebinop (e1,Not_equal,e2)} %prec DIFFERENT
-  |e1= expr ; EQUAL; EQUAL ; e2= expr {Ebinop (e1,Equal,e2)} %prec EQUAL_EQUAL
-  |e1= expr ; PLUS ; e2= expr {Ebinop (e1,Plus,e2)}
-  |e1= expr ; MINUS ; e2= expr {Ebinop (e1, Minus,e2)}
-  |e1= expr ; TIMES ; e2= expr {Ebinop (e1, Times,e2)}
-  |e1= expr ; DIV ; e2= expr {Ebinop (e1, Divide,e2)}
-  |e1= expr ; MODULO ; e2= expr {Ebinop (e1, Modulo,e2)}
+  |e1= expr; b=binop; e2=expr {Ebinop (e1,b,e2)}
+
   |LPAR; e=expr; RPAR {e}
   
+	|e=expr; DOT; i=IDENT {Eattribute (e,i)}
   |e1= expr ; DOT ; i=IDENT; LPAR ; RPAR  {if i="len" then Elen (e1) else raise (Parsing_error "error")} /*
-rajouter les erreurs en temps voulu */
-	|e1=expr; DOT; i=IDENT {Eattribute (e,i)}
-  |e1= expr ; LB ; e2=expr ; RB {Eselect (e1, e2)}
+rajouter les erreurs en temps voulu */ 
+  |e1= expr ; LB ; e2=expr ; RB {Eselect (e1, e2)} 
   |i= IDENT ; LPAR ; e=l_expr ; RPAR  {Ecall (i, e)}
   |b= bloc {Ebloc b}
   |i=IDENT ; EM ; LB ; e=l_expr ; RB {if i="vec" then Evect (e) else raise (Parsing_error "error")}
@@ -77,9 +65,22 @@ rajouter les erreurs en temps voulu */
   |ident = IDENT {Eident ident}
   |b=BOOL {Ebool b}
   
-	|s = stmt {raise (Parsing_error "Expected an expression, not a statement. Maybe you forgot {}")} %prec ERROR
-	|d= dec {raise (Parsing_error "Cannot declare a function or a structure within a declaration.")} %prec ERROR
-	| {raise (Parsing_error "expected an expression")}
+	
+%inline binop:
+	|AFFECT {Affect}
+	|OR {Or}
+	|AND {And} 
+	|INFERIOR_EQUAL {Less_or_equal} 
+	|INFERIOR {Less} 
+	|SUPERIOR_EQUAL {Greater_or_equal} 
+	|SUPERIOR {Greater}
+	|DIFFERENT {Not_equal} 
+	|EQUAL {Equal}
+	|PLUS {Plus}
+	|MINUS {Minus}
+	|TIMES {Times}
+	|DIV {Divide}
+	|MODULO {Modulo}	
 	
 l_expr:
   |e=expr; COMMA; l=l_expr {e::l}
@@ -91,13 +92,11 @@ l_expr:
 stmt:
 	|ENDSTMT {Unit}
 	|e=expr; ENDSTMT {Sexpr e}
-	|LET; m=boption(MUT); ident=IDENT; EQUAL; e=expr; ENDSTMT {Saff (m,ident,e)} 
-	|LET; m=boption(MUT); name=IDENT; EQUAL; structure=IDENT; LCB; l=affect_attributes; ENDSTMT {Sobj (m,name,structure,l)} 
+	|LET; m=boption(MUT); ident=IDENT; AFFECT; e=expr; ENDSTMT {Saff (m,ident,e)} 
+	|LET; m=boption(MUT); name=IDENT; AFFECT; structure=IDENT; LCB; l=affect_attributes; ENDSTMT {Sobj (m,name,structure,l)} 
 	|WHILE; e=expr; b=bloc {Swhile (e,b)}
 	|RETURN; r=return; ENDSTMT {Sreturn r}
 	|i = rule_if {Sif i}
-	|d= dec {raise (Parsing_error "Cannot declare a function or a structure within a declaration.")} %prec ERROR
-	| {raise (Parsing_error "expected a statement")}
 
 
 
@@ -109,23 +108,18 @@ return:
 affect_attributes:
 	|RCB {[]}
 	|i=IDENT; COLON; e=expr; COMMA; v=affect_attributes {(i,e)::v}
-	| {raise (Parsing_error "} missing after structure attributes assignement")}
 
 	
 rule_if:
 	|IF; e=expr; b1=bloc; ELSE; b2=bloc {Bif (e,b1,b2)}
 	|IF; e=expr; b=bloc {Aif (e,b)}
 	|IF; e=expr; b=bloc;  ELSE; pif=rule_if {Iif (e,b,pif)}
-	|d= dec {raise (Parsing_error "Cannot declare a function or a structure within a declaration.")} %prec ERROR
-	| {raise (Parsing_error "expected a string")}
 
 
 bloc:
 	|LCB; r=l_stmt {let l,t=r in match t with
 												|None -> Ubloc l
 												|Some e -> Vbloc (l,e)}
-	|d= dec {raise (Parsing_error "Cannot declare a function or a structure within a declaration.")} %prec ERROR
-	| {raise (Parsing_error "expected a bloc")} %prec ERROR
 
 
 l_stmt:
@@ -136,7 +130,7 @@ l_stmt:
 
 typ:
 	|i=IDENT; INFERIOR; t=typ; SUPERIOR {Tcons (i,t)}
-	|AMPERSAND; m=boption(MUT); t=typ {Tesp (m,t)}
+	|BORROW; m=boption(MUT); t=typ {Tesp (m,t)}
 	|i=IDENT {Tid i}
 
 
@@ -149,7 +143,6 @@ dec_fun:
 																												arguments = l;
 																												body=b;
 																												typ=t;}}
-	| {raise (Parsing_error "expected a declaration")}
 
 l_arg:
 	|a=argument; COMMA; l=l_arg {a::l}
@@ -157,25 +150,24 @@ l_arg:
 
 
 dec_typ:
-	|LPAR; ARROWFIRST; SUPERIOR; t=typ; RPAR {Some t}
-	|																				{None}
+	|LPAR; ARROW; t=typ; RPAR {Some t}
+	|												  {None}
 
 
 dec_struct:
 	|STRUCT; i=IDENT; LCB; l=dec_attributes; RCB {{name=i;
 																								 attributes = l;}}
-	| {raise (Parsing_error "expected a declaration")}
 
 
 dec_attributes:
 	|i=IDENT; COLON; t=typ; COMMA; l=dec_attributes {(i,t)::l}
+	|i=IDENT; COLON; t=typ                          {[(i,t)]}
 	|																								{[]}
 
 	
 dec:
 	|s = dec_struct {Ddecl_struct s}
 	|f = dec_fun {Ddecl_fun f}
-	| {raise (Parsing_error "expected a declaration")}
 
 	
 prog :

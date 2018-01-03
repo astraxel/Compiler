@@ -21,10 +21,10 @@ main: $(CMO)
 	ocamllex $<
 
 .mly.ml:
-	menhir -v $<
+	menhir -v --infer $<
 
 .mly.mli:
-	menhir -v $<
+	menhir -v --infer $<
 
 clean:
 	rm -f *.cm[io] *.o *.annot *~ mini-python $(GENERATED)
