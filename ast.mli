@@ -1,8 +1,7 @@
-
-
-type binop = Equal | Not_equal | Less | Greater | Less_or_equal | Greater_or_equal | And | Or |Plus | Minus | Times | Divide | Modulo
+type binop = Equal | Not_equal | Less | Greater | Less_or_equal
+             | Greater_or_equal | And | Or |Plus | Minus | Times | Divide | Modulo | Affect
                                                                                                                              
-type unop = Not | Minus
+type unop = Not | UMinus | Deref | SharedBorrow | MutBorrow
 
 type ident = string
 
@@ -15,8 +14,13 @@ type typ =
          
 type argument = mut * ident * typ
 
+type pos = Lexing.position
+              
+type expr = {expr : vexpr;
+             startpos : pos;
+             endpos : pos;}
                     
-type expr =
+and vexpr =
   |Eint of int
   |Ebool of bool
   |Eident of ident
@@ -26,7 +30,7 @@ type expr =
   |Elen of expr
   |Eselect of expr * expr
   |Ecall of ident * expr list
-  |Evect of expr array
+  |Evect of expr list
   |Eprint of string
   |Ebloc of bloc
 
