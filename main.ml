@@ -64,7 +64,7 @@ and print_expr e = match e.expr with
                        print_expr e2
   |Eunop (u,e1) -> print_unop u;
                    print_expr e1
-  |Eattribute (e1,i) -> print_expr e;
+  |Eattribute (e1,i) -> print_expr e1;
                         print_string ".";
                         print_string i
   |Elen e1 -> print_expr e1;
