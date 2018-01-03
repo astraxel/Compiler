@@ -5,36 +5,35 @@ FLAGS=-annot -g
 all: main
 	./main "test.rs"
 
-
 main: $(CMO)
-	ocamlc $(FLAGS) -o $@ nums.cma $(CMO)
+	ocamlc $(FLAGS) -o main nums.cma $(CMO)
 
-.SUFFIXES: .mli .ml .cmi .cmo .mll .mly
+lexer.cmo: lexer.ml
+	ocamlc $(FLAGS) -c lexer.ml
 
-.mli.cmi:
-	ocamlc $(FLAGS) -c  $<
+parser.cmo: parser.ml
+	ocamlc $(FLAGS) -c parser.ml
 
-.ml.cmo:
-	ocamlc $(FLAGS) -c $<
+main.cmo: main.ml
+	ocamlc $(FLAGS) -c main.ml
 
-.mll.ml:
-	ocamllex $<
 
-.mly.ml:
-	menhir -v --infer $<
+lexer.ml: lexer.mll parser.cmi
+	ocamllex lexer.mll
 
-.mly.mli:
-	menhir -v --infer $<
+
+parser.mli parser.ml: parser.mly ast.cmi
+	menhir -v --infer parser.mly
+
+
+ast.cmi : ast.mli
+	ocamlc $(FLAGS) -c ast.mli
+
+parser.cmi : parser.mli
+	ocamlc $(FLAGS) -c parser.mli
+
 
 clean:
-	rm -f *.cm[io] *.o *.annot *~ mini-python $(GENERATED)
+	rm -f *.cm[io] *.o *.annot *~  $(GENERATED)
 	rm -f parser.output parser.automaton
-
-.depend depend:$(GENERATED)
-	rm -f .depend
-	ocamldep *.ml *.mli > .depend
-
-include .depend
-
-
 
