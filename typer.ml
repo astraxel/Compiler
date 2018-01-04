@@ -3,6 +3,10 @@ open Ast
 module Smap = Map.Make (String)
 module Sset = Set.Make (String) 
 
+(*
+exception Erreur_typage of typ * typ * loc 
+*)
+
 type env = {
    dec_vars : typ Smap.t ; (* associe à chaque variable son type *)
    dec_typs : typ SImap.t ; (* associe à chaque variable dont le type est déclarée le type qu'elle dénote *)
@@ -17,18 +21,19 @@ type env = {
    nb_incomplete : int ;
 }
 
-let type_expr env (e , loc ) = match e with 
+let type_expr env (e , startpos, endpos ) = match e with 
    |Eint n -> (TEint n, Tint)
    |Ebool b -> (TEbool b, Tbool)
    |Eunop ( unop , e) -> 
       | begin match unop with 
          |UMinus ->
+            let (_, et) as etype =type_expr env e in 
             begin match e with 
-               |Tint -> 
-               | -> failwith "erreur : e doit être un entier pour lui appliquer UMinus "
+               |Tint -> (TEunop ( unop , etype), Tint) 
+               | -> raise ( Erreur_typage ( et,   Tint , 
          |Not ->
             begin match e with 
-               | Tbool -> Tbool
+               | Tbool -> (TEunop (unop, type_expr env e ),Tbool)
                | -> failwith "erreur : e doit être un booléen pour lui appliquer Not "
    |Ebinop (e1, op , e2) ->
      begin match op with 
@@ -36,20 +41,20 @@ let type_expr env (e , loc ) = match e with
         | Greater_or_equal  ->
            begin match e1 with
               |Tint -> begin match e2 with 
-                 |Tint -> Tbool
+                 |Tint -> (TEbinop (type_exp env e1, op , type_expr env e2), Tbool)
                  | -> failwith "erreur : e2 doit être un entier pour le comparer avec e1"
               | -> failwith "erreur : e1 doit être un entier pour le comparer avec e2 "
          
          | Plus | Minus | Times | Divide | Modulo -> 
             begin match e1 with
                |Tint -> begin match e2 with 
-                  |Tint -> (TEbinop ((_, type_exp env e1), op , (_, type_expr env e2)), Tint)
+                  |Tint -> (TEbinop ( type_expr env e1, op , type_expr env e2 ), Tint)
                   | -> failwith "erreur : e2 doit être un entier pour utiliser des opérations arithmétiques dessus"
                | -> failwith "erreur : e1 doit être un entier pour utiliser des opérations arithmétiques dessus "
          | And | Or ->
             begin match e1 with
                |Tbool -> begin match e2 with 
-                  |Tbool -> Tbool
+                  |Tbool -> (TEbinop ( type_expr env e1 , op, type_expr env e2 ), Tint)
                   | -> failwith "erreur : e2 doit être un booléen pour utiliser And ou Or dessus"
                | -> failwith "erreur : e1 doit être un booléen pour utiliser And ou Or"
            
