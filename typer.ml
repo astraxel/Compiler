@@ -11,6 +11,9 @@ exception Erreur_types_non_egaux of typ *loc * typ * loc
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 
+let deref_function  e = function e ->
+   
+   
 let type_expr env (e , startpos, endpos ) = match e with 
    |Eint n -> (TEint n, Tint)
    |Ebool b -> (TEbool b, Tbool)
@@ -38,7 +41,7 @@ let type_expr env (e , startpos, endpos ) = match e with
             let (_, et) as etype =type_expr env e in
             (* on doit renvoyer un type &et mais je ne comprends pas c'est quoi ce type, un struct ? *)
          
-         |MutBorrow -> (TEunop (unop, etype), Tref )
+         |MutBorrow -> (TEunop (unop, etype), Tref ) (* manque la vérif que e est mutable *)
       end
    |Ebinop (e1, op , e2) ->
       let (_, e1t) as e1type =type_expr env e1 in
@@ -74,13 +77,14 @@ let type_expr env (e , startpos, endpos ) = match e with
       let (_, et) as etype =type_expr env e in
       begin match et with 
          |Tvec -> (TEvect e , Tint )
+         |Tref (_, Tvec) ->  (TEvect e, Tint )
          |_ -> raise ( Erreur_typage ( et, Tvec , snd e))
       end      
    |Eselect (e1 , e2) ->
       let (_, e1t) as e1type =type_expr env e1 in
       let (_, e2t) as e2type =type_expr env e2 in
       begin match e1t with 
-         |Tvec -> begin match e2t with
+         |Tvec | Tref (_, Tvec) -> begin match e2t with
             |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
             | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
             end
