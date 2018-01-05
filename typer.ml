@@ -9,7 +9,7 @@ exception Erreur_types_egaux of typ *loc *typ * loc
 exception Erreur_types_non_egaux of typ *loc * typ * loc 
 *)
 
-
+(* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 
 let type_expr env (e , startpos, endpos ) = match e with 
    |Eint n -> (TEint n, Tint)
@@ -95,7 +95,7 @@ let type_expr env (e , startpos, endpos ) = match e with
   |Eprint s -> (TEprint s , Tunit)
   
 
-and type-stmt env (s, loc ) = match s with 
+and type_stmt env (s, loc ) = match s with 
    |Sreturn e -> begin match e with 
       |None -> (TSreturn e , Tunit )
       |Some e1 -> (TSreturn e1 , Tunit)
@@ -113,6 +113,40 @@ and type-stmt env (s, loc ) = match s with
    |Sif s ->
       let (_,st) as stype = type_if env s in
       (TSif (stype), st) 
+
+and type_bloc env (b, loc) = match b with
+   |Ubloc (s) -> 
+      begin match s with
+         |Unit -> 
+            let (_, st) as stype = type_stmt env s in
+            (TUbloc (stype), Tunit)
+         |_ -> 
+            let (_,bt) as btype = type_bloc env s in
+            (TUbloc (btype), bt) (* { ; b } est du type de b *)
+      end   
+   
+   |Vbloc (s, e) -> 
+      let (_,et) as etype = type_expr env e in
+      begin match s with
+         |Unit -> 
+            let (_,et) as etype = type_expr env e in
+            let (_, st ) as stype = type_stmt env s in
+            (TVbloc (stype, etype), et )
+         |_ -> begin match e with
+            |Sexpr | Swhile | Sreturn |Sif ->
+               let (_, st ) as stype = type_stmt env s in
+               let (_,bt) as btype = type_bloc env e in
+               (TVbloc (stype, btype), bt)
+            |Sobj | Saff
+            
+         (* Je risque de devoir créer un environnement de typage pour cette règle... On va voit ça apres *)
+            | 
+      end   
+         
+         
+   
+         
+      
    
 
 and type_if env ( p, loc ) = match p with 
