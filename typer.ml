@@ -11,10 +11,23 @@ exception Erreur_types_non_egaux of typ *loc * typ * loc
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 
-let deref_function  e = function e ->
+let rec type_list  env e = 
+   match e with 
+      |Unit -> raise (Erreur_
+      |x -> 
+         let (_,xt) as xtype = type_expr env x
+         xt
+      
+      |x::y::r -> 
+         let (_, xt) as xtype =type_expr env x
+         let (_, yt) as ytype = type_expr env y
+         begin match xt with
+            |yt -> type_list env y::r
+            |_-> raise (Erreur_types_non_egaux (xt, snd x , yt, snd y)
    
    
-let type_expr env (e , startpos, endpos ) = match e with 
+   
+let type_expr env (e , loc) = match e with 
    |Eint n -> (TEint n, Tint)
    |Ebool b -> (TEbool b, Tbool)
    |Eunop ( unop , e) -> 
@@ -93,8 +106,8 @@ let type_expr env (e , startpos, endpos ) = match e with
    (* valeur gauche *)
   
   | Evect e ->
-     let (_, et) as etype =type_expr env e in
-     (* Comment gérer la vérification que tous les types de la liste sont les memes ??? *)
+     let r=type_list env e
+     (TEvect (type_expr env e),r)
 
   |Eprint s -> (TEprint s , Tunit)
   
