@@ -2,18 +2,35 @@ open Ast
 
 module Smap = Map.Make (String)
 module Sset = Set.Make (String) 
-
+type env = typ Smap.t
 (*
-exception Erreur_typage of typ * typ * startpos * endpos
+exception Erreur_typage of typ * typ * loc
 exception Erreur_types_egaux of typ *loc *typ * loc
 exception Erreur_types_non_egaux of typ *loc * typ * loc 
+exception Erreur_mut of expr * loc
+exception Erreur_vide of loc
 *)
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
+let get_mut = function
+  | Tunit opt -> opt
+  | Tint opt -> opt
+  | Tbool opt -> opt
+  | Tvec (opt, _) -> opt
+  | Tbr (opt, _) -> opt
+  | Tstruc (opt, _) -> opt
+  
+let check_mutability (e, loc)  = 
+  let check_mut = function 
+    | None -> raise (Erreur_mut ( loc)) 
+    | Some false -> false
+    | _ -> true
+  in check_mut (get_mut e)
+
 
 let rec type_list  env e = 
    match e with 
-      |Unit -> raise (Erreur_
+      |Unit -> raise (Erreur_vide (loc))
       |x -> 
          let (_,xt) as xtype = type_expr env x
          xt
@@ -23,9 +40,28 @@ let rec type_list  env e =
          let (_, yt) as ytype = type_expr env y
          begin match xt with
             |yt -> type_list env y::r
-            |_-> raise (Erreur_types_non_egaux (xt, snd x , yt, snd y)
+            |_-> raise (Erreur_types_non_egaux (xt, snd x , yt, snd y))
+         end
    
-   
+let rec type_arg_list env (e, a ) =
+   match e with 
+      |Unit -> raise (Erreur_vide (loc))
+      | x-> begin match a with
+         |y -> begin match snd x with
+            |snd y -> true (* Une valeur random pour verifier *)
+            |_ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * snd y * snd (fst y) )) (* verifier que snd fst x renvoie la loc de x *)
+         end
+      end 
+      | x::y::r -> begin match a with 
+         |w::z::o -> begin match snd x with
+            |snd w -> begin match snd y with
+               |snd z -> type_arg_list (y::r , z::o)
+               |_ -> raise (Erreur_types_non_egaux (snd y * snd (fst y) * snd z * snd (fst z) ))
+            end
+            |_ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * snd w * snd (fst w) )) (* De meme *)
+         end
+      end 
+      
    
 let type_expr env (e , loc) = match e with 
    |Eint n -> (TEint n, Tint)
@@ -54,7 +90,10 @@ let type_expr env (e , loc) = match e with
             let (_, et) as etype =type_expr env e in
             (* on doit renvoyer un type &et mais je ne comprends pas c'est quoi ce type, un struct ? *)
          
-         |MutBorrow -> (TEunop (unop, etype), Tref ) (* manque la vérif que e est mutable *)
+         |MutBorrow -> 
+            match check_mutability e with
+               |false -> raise ( Erreur_mut (e , loc))
+               |true -> (TEunop (unop, etype), Tref ) 
       end
    |Ebinop (e1, op , e2) ->
       let (_, e1t) as e1type =type_expr env e1 in
@@ -84,6 +123,15 @@ let type_expr env (e , loc) = match e with
                   | -> raise ( Erreur_typage ( e2t, Tbool , snd e2))
                   end
                |_ -> raise ( Erreur_typage ( e1t, Tbool, snd e1 ))
+         |Eassignement (e1, e2) -> (*TODO add Eassignement à L'ast *)
+            let (_, e1t) as e1type =type_expr env e1 in
+            let (_, e2t) as e2type =type_expr env e2 in
+            match check_mutability e1 with
+               |false -> raise ( Erreur_mut (e1 , loc))
+               |true -> (Eassignement (e1type, e2type), Tunit ) 
+               
+            
+            
            end
       end
    |Elen e ->
@@ -110,6 +158,16 @@ let type_expr env (e , loc) = match e with
      (TEvect (type_expr env e),r)
 
   |Eprint s -> (TEprint s , Tunit)
+
+and type_decl env (d, loc) = match d with
+   |Ddecl_fun (i, a , b , t) ->
+      
+   
+   |Ddecl_permutation (i, a, f ) -> (* Probablement passager *) 
+   
+   |Ddecl_struct (i, a) ->
+      match 
+      
   
 
 and type_stmt env (s, loc ) = match s with 
@@ -119,7 +177,7 @@ and type_stmt env (s, loc ) = match s with
       end 
    |Swhile ( e, e1 ) ->
       let (_, et) as etype =type_expr env e in
-      let (_, e1t) as e1type = type_bloc env e1 in (* structure à vérifier quand type_bloc done *)
+      let (_, e1t) as e1type = type_bloc env e1 in 
       begin match et with 
          |Tbool -> begin match e1t with
             |Tunit -> (TSwhile (etype, e1type) , Tunit)
@@ -138,46 +196,37 @@ and type_bloc env (b, loc) = match b with
             let (_, st) as stype = type_stmt env s in
             (TUbloc (stype), Tunit)
          |_ -> 
-            let (_,bt) as btype = type_bloc env s in
-            (TUbloc (btype), bt) (* { ; b } est du type de b *)
+            let (_,st) as stype = type_stmt env s in
+            (TUbloc (stype), st) (* { e } est du type de e *)
       end   
    
-   |Vbloc (s, e) -> 
-      let (_,et) as etype = type_expr env e in
-      begin match s with
-         |Unit -> 
-            let (_,et) as etype = type_expr env e in
-            let (_, st ) as stype = type_stmt env s in
-            (TVbloc (stype, etype), et )
-         |_ -> begin match e with
-            |Sexpr | Swhile | Sreturn |Sif ->
-               let (_, st ) as stype = type_stmt env s in
-               let (_,bt) as btype = type_bloc env e in
-               (TVbloc (stype, btype), bt)
-            |Sobj | Saff
-            
-         (* Je risque de devoir créer un environnement de typage pour cette règle... On va voit ça apres *)
-            | 
-      end   
-         
-         
-   
-         
+   |Vbloc (s, b) -> 
+      let (_, st) as stype = type_stmt env s in 
+      begin match s with 
+         |Unit ->
+            let (_,bt) as btype= type_bloc env b in
+            (TVbloc (stype, btype), bt) (* { ; b} est du type de b *)
+         |Sexpr (_) | Swhile (_ , _) | Sreturn (_) |Sif (_)-> 
+            let (_,bt) as btype =type_bloc env b in
+            (TVbloc (stype, btype), bt) (* {e ; b} est du type de b *)
+         |Sobj (m, x, _) | Saff (m, x, _, _)->
+            let (_,bt) as btype =type_bloc (Smap.add (m*x)  (type_stmt env s ) env) in
+            (TVbloc (stype, btype), bt )
+      end
       
-   
 
 and type_if env ( p, loc ) = match p with 
    |Aif ( e, b) -> 
       let (_, et ) as etype =type_expr env e in 
-      let (_, bt) as btype = type_bloc env b in (* structure à vérifier quand type-bloc done *)
+      let (_, bt) as btype = type_bloc env b in 
       begin match et with 
          |Tbool -> (TAif (etype, btype ), bt )
          |_-> raise ( Erreur_typage (etype, Tbool, snd e))
       end
    |Bif ( e, b1 , b2) ->
       let (_, et ) as etype =type_expr env e in 
-      let (_, b1t) as b1type = type_bloc env b1 in (* structure à vérifier quand type-bloc done *)
-      let (_, b2t) as b2type = type_bloc env b2 in (*structure à vérifier quand type_bloc done *)
+      let (_, b1t) as b1type = type_bloc env b1 in 
+      let (_, b2t) as b2type = type_bloc env b2 in 
       begin match et with 
          |Tbool -> begin match b1t with 
             |b2t -> (TBif (etype, b1type, b2type) , b1t )
@@ -187,7 +236,7 @@ and type_if env ( p, loc ) = match p with
       end
    |Cif (e, b, c) ->
       let (_, et ) as etype =type_expr env e in 
-      let (_, bt) as btype = type_bloc env b in (* structure à vérifier quand type-bloc done *)
+      let (_, bt) as btype = type_bloc env b in 
       let (_, ct) as ctype = type_if env c in 
       begin match et with 
          |Tbool -> begin match bt with 
@@ -204,15 +253,26 @@ and type_if env ( p, loc ) = match p with
   (*  type env = {
    dec_vars : typ Smap.t ; (* associe à chaque variable son type *)
    dec_typs : typ SImap.t ; (* associe à chaque variable dont le type est déclarée le type qu'elle dénote *)
-   def_recs : (typ Smap.t) SImap.t;
-   def_funs : ((mode * typ) list * typ) Smap.t (*associe à chaque fonction son type de retour, la liste du type 
-                                                * et du mode de sesargs *)
+   def_funs : ((mode * typ) list * typ) Smap.t ;(*associe à chaque fonction son type de retour, la liste du type 
+   * et du mode de sesargs *)
+   dec_structs ((typ * int) Smap.t * (int *int)) Smap.t ;
+   structs_counter : int ;
+   borrowed_by : (ident list) BSmap.t; 
    const_vars : Sset.t ;
-   for_vars : Sset.t ;
-   idents : (dtyp * int ) Smap.t ;
-   return_value : typ ;
+   idents : (dtyp * int ) Smap.t ; ;
    level : int ;
-   nb_incomplete : int ;
+   
+  let empty_env name= 
+     let env = { dec_vars = Smap.empty ;
+                 dec_typs = SImap.empty ;
+                 def_funs = SImap.empty ;
+                 dec_structs = Smap.empty  ;
+                 structs_counter = 0 ;
+                 borrowed_by  = BSmap.empty ;
+                 const_vars : Sset.empty ;
+                 idents = Smap.empty ;
+                 level = 0 ;
+                 
 }
 
 let rec type_fun_call env is_exp i el loc =
@@ -245,7 +305,6 @@ let fun_of_ident (i, loc) env =
  |Eassignement (e1 , e2) -> 
       let (_, e1t) as e1type =type_expr env e1 in
       let (_, e2t) as e2type =type_expr env e2 in
-      l
       | false -> let muterr' = match e1.e_tre
          | Efield (_, idn) -> 
             (idn.id_loc, Assign_immutable_field idn.id)
