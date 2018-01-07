@@ -2,7 +2,7 @@ open Ast
 
 module Smap = Map.Make (String)
 module Sset = Set.Make (String) 
-type env = typ Smap.t
+type env = (typ, bool) Smap.t
 (*
 exception Erreur_typage of typ * typ * loc
 exception Erreur_types_egaux of typ *loc *typ * loc
@@ -62,6 +62,51 @@ let rec type_arg_list env (list_typ, list_expr ) =
          end
       end 
       
+let type_lvalue_expr env (e, loc ) = match e with 
+   (* deref done, deuxieme, crochet done, struct, struct bis done *)
+   |Eunop (unop , e) ->
+      begin match unop with 
+         |Deref ->
+            let (_, et) as etype =type_expr env e in
+            begin match et with
+               |Tref -> (TEunop (unop, etype) , Tint)
+               |_-> raise ( Erreur_typage (et , Tref, snd e))
+            end
+      end
+   |Eselect (e1 , e2) ->
+      let (a, e1t) as e1type =type_expr env e1 in
+      let (_, e2t) as e2type =type_expr env e2 in
+      begin match e1t with 
+         |Tvec -> begin match e2t with
+            |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
+            | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
+            end
+         |Tref -> begin match snd a with
+            |Tvec-> begin match e2t with
+               |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
+               | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
+               end
+            |_ -> raise (Erreur_typage (snd a, Tvec , snd e1)) (* Considere que Tref peut etre applique qu'une fois *)
+         | _-> raise ( Erreur_typage (e1t, Tvec, snd e1))
+      end 
+  |Eattribute (e, i) ->
+      let (a,et) as etype = type_expr env e in
+      begin match et with 
+         |Tstruct  -> 
+            let t = check_in (et, i) 
+            (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+            (TEattribute (etype, ident), t)
+         
+         | Tref -> begin match snd a with
+            |Tstruct -> (*on considere que Tref peut etre applique su'une fois *)
+                let t = check_in (et, i) 
+                (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+                (TEattribute (etype, ident), t)
+            | _ -> raise ( Erreur_typage (snd a , Tstruct, snd e))
+         
+         |_ -> raise (Erreur_typage (et, Tstruct, snd e))
+      end
+   
    
 let type_expr env (e , loc) = match e with 
    |Eint n -> (TEint n, Tint)
@@ -80,15 +125,10 @@ let type_expr env (e , loc) = match e with
                | Tbool -> (TEunop (unop, etype ),Tbool)
                |_ -> raise ( Erreur_typage ( et, Tbool , snd e))
             end
-         |Deref ->
-            let (_, et) as etype =type_expr env e in
-            begin match et with
-               |Tref -> (TEunop (unop, etype) , Tint)
-               |_-> raise ( Erreur_typage (et , Tref, snd e))
-            end
+         
          |SharedBorrow ->
             let (_, et) as etype =type_expr env e in
-            (TEunop (unop, etype), Tref )
+            (TEunop (unop, etype), Toref )
          
          |MutBorrow -> 
             match check_mutability e with
@@ -119,36 +159,21 @@ let type_expr env (e , loc) = match e with
          | And | Or ->
             begin match e1t with
                |Tbool -> begin match e2t with 
-                  |Tbool -> (TEbinop (e1type , op, e2type ), Tint)
+                  |Tbool -> (TEbinop (e1type , op, e2type ), Tbool)
                   | -> raise ( Erreur_typage ( e2t, Tbool , snd e2))
                   end
                |_ -> raise ( Erreur_typage ( e1t, Tbool, snd e1 ))
-         |Eassignement (e1, e2) -> (*TODO add Eassignement à L'ast *)
-            let (_, e1t) as e1type =type_expr env e1 in
+         | Eassignement -> (*TODO add Eassignement à L'ast *)
+            let (_, e1t) as e1type =type_lvalue_expr env e1 in
             let (_, e2t) as e2type =type_expr env e2 in
+            
             begin match check_mutability e1 with
                |false -> raise ( Erreur_mut (e1 , loc))
                |true -> (Eassignement (e1type, e2type), Tunit ) 
             end
       end
       
-   |Eattribute (e, i) ->
-      let (a,et) as etype = type_expr env e in
-      begin match et with 
-         |Tstruct  -> 
-            let t = check_in (et, i) 
-            (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
-            (TEattribute (etype, ident), t)
-         
-         | Tref -> begin match snd a with
-            |Tstruct -> (*on considere que Tref peut etre applique su'une fois *)
-                let t = check_in (et, i) 
-                (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
-                (TEattribute (etype, ident), t)
-            | _ -> raise ( Erreur_typage (snd a , Tstruct, snd e))
-         
-         |_ -> raise (Erreur_typage (et, Tstruct, snd e))
-      end
+   
       
    |Ecall (i, e) ->
       let 
@@ -164,22 +189,7 @@ let type_expr env (e , loc) = match e with
             |_ -> raise (Erreur_typage ( snd a, Tvec, snd e)) (*Considere que Tref peut etre applique qu'une fois *)
          |_ -> raise ( Erreur_typage ( et, Tvec , snd e))
       end      
-   |Eselect (e1 , e2) ->
-      let (a, e1t) as e1type =type_expr env e1 in
-      let (_, e2t) as e2type =type_expr env e2 in
-      begin match e1t with 
-         |Tvec -> begin match e2t with
-            |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
-            | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
-            end
-         |Tref -> begin match snd a with
-            |Tvec-> begin match e2t with
-               |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
-               | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
-               end
-            |_ -> raise (Erreur_typage (snd a, Tvec , snd e1)) (* Considere que Tref peut etre applique qu'une fois *)
-         | _-> raise ( Erreur_typage (e1t, Tvec, snd e1))
-      end   
+   
    (* valeur gauche *)
   
   | Evect e ->
