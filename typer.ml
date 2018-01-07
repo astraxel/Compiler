@@ -89,8 +89,6 @@ let type_expr env (e , loc) = match e with
          |SharedBorrow ->
             let (_, et) as etype =type_expr env e in
             (TEunop (unop, etype), Tref )
-
-            (* on doit renvoyer un type &et mais je ne comprends pas c'est quoi ce type, un struct ? *)
          
          |MutBorrow -> 
             match check_mutability e with
@@ -135,14 +133,21 @@ let type_expr env (e , loc) = match e with
       end
       
    |Eattribute (e, i) ->
-      let (_,et) as etype = type_expr env e in
+      let (a,et) as etype = type_expr env e in
       begin match et with 
          |Tstruct  -> 
             let t = check_in (et, i) 
             (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
             (TEattribute (etype, ident), t)
          
-          |_ -> raise (Erreur_typage (et, Tstruct, snd e))
+         | Tref -> begin match snd a with
+            |Tstruct -> (*on considere que Tref peut etre applique su'une fois *)
+                let t = check_in (et, i) 
+                (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+                (TEattribute (etype, ident), t)
+            | _ -> raise ( Erreur_typage (snd a , Tstruct, snd e))
+         
+         |_ -> raise (Erreur_typage (et, Tstruct, snd e))
       end
       
    |Ecall (i, e) ->
@@ -151,20 +156,28 @@ let type_expr env (e , loc) = match e with
    
    
    |Elen e ->
-      let (_, et) as etype =type_expr env e in
+      let (a, et) as etype =type_expr env e in
       begin match et with 
          |Tvec -> (TEvect e , Tint )
-         |Tref (_, Tvec) ->  (TEvect e, Tint )
+         |Tref -> begin match snd a with
+            |Tvec -> (TEvect e, Tint )
+            |_ -> raise (Erreur_typage ( snd a, Tvec, snd e)) (*Considere que Tref peut etre applique qu'une fois *)
          |_ -> raise ( Erreur_typage ( et, Tvec , snd e))
       end      
    |Eselect (e1 , e2) ->
-      let (_, e1t) as e1type =type_expr env e1 in
+      let (a, e1t) as e1type =type_expr env e1 in
       let (_, e2t) as e2type =type_expr env e2 in
       begin match e1t with 
-         |Tvec | Tref (_, Tvec) -> begin match e2t with
+         |Tvec -> begin match e2t with
             |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
             | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
             end
+         |Tref -> begin match snd a with
+            |Tvec-> begin match e2t with
+               |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
+               | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
+               end
+            |_ -> raise (Erreur_typage (snd a, Tvec , snd e1)) (* Considere que Tref peut etre applique qu'une fois *)
          | _-> raise ( Erreur_typage (e1t, Tvec, snd e1))
       end   
    (* valeur gauche *)
