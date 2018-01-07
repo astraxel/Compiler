@@ -43,16 +43,16 @@ let rec type_list  env e =
             |_-> raise (Erreur_types_non_egaux (xt, snd x , yt, snd y))
          end
    
-let rec type_arg_list env (e, a ) =
-   match e with 
-      |Unit -> raise (Erreur_vide (loc))
-      | x-> begin match a with
+let rec type_arg_list env (list_typ, list_expr ) =
+   match list_typ with 
+      |Unit -> raise (Erreur_vide (loc)) (* sur de vouloir creer une erreur ? *)
+      | x-> begin match list_expr with 
          |y -> begin match snd x with
             |snd y -> true (* Une valeur random pour verifier *)
             |_ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * snd y * snd (fst y) )) (* verifier que snd fst x renvoie la loc de x *)
          end
       end 
-      | x::y::r -> begin match a with 
+      | x::y::r -> begin match list_expr with 
          |w::z::o -> begin match snd x with
             |snd w -> begin match snd y with
                |snd z -> type_arg_list (y::r , z::o)
@@ -84,10 +84,12 @@ let type_expr env (e , loc) = match e with
             let (_, et) as etype =type_expr env e in
             begin match et with
                |Tref -> (TEunop (unop, etype) , Tint)
-               |_-> raise ( Erreur_typage (et , Tref, snd e)
+               |_-> raise ( Erreur_typage (et , Tref, snd e))
             end
          |SharedBorrow ->
             let (_, et) as etype =type_expr env e in
+            (TEunop (unop, etype), Tref )
+
             (* on doit renvoyer un type &et mais je ne comprends pas c'est quoi ce type, un struct ? *)
          
          |MutBorrow -> 
@@ -126,14 +128,28 @@ let type_expr env (e , loc) = match e with
          |Eassignement (e1, e2) -> (*TODO add Eassignement à L'ast *)
             let (_, e1t) as e1type =type_expr env e1 in
             let (_, e2t) as e2type =type_expr env e2 in
-            match check_mutability e1 with
+            begin match check_mutability e1 with
                |false -> raise ( Erreur_mut (e1 , loc))
                |true -> (Eassignement (e1type, e2type), Tunit ) 
-               
-            
-            
-           end
+            end
       end
+      
+   |Eattribute (e, i) ->
+      let (_,et) as etype = type_expr env e in
+      begin match et with 
+         |Tstruct  -> 
+            let t = check_in (et, i) 
+            (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+            (TEattribute (etype, ident), t)
+         
+          |_ -> raise (Erreur_typage (et, Tstruct, snd e))
+      end
+      
+   |Ecall (i, e) ->
+      let 
+      
+   
+   
    |Elen e ->
       let (_, et) as etype =type_expr env e in
       begin match et with 
@@ -210,7 +226,7 @@ and type_bloc env (b, loc) = match b with
             let (_,bt) as btype =type_bloc env b in
             (TVbloc (stype, btype), bt) (* {e ; b} est du type de b *)
          |Sobj (m, x, _) | Saff (m, x, _, _)->
-            let (_,bt) as btype =type_bloc (Smap.add (m*x)  (type_stmt env s ) env) in
+            let (_,bt) as btype =type_bloc (Smap.add (m*x)  (type_stmt env s ) env) in (* TODO check si m*x est legit *)
             (TVbloc (stype, btype), bt )
       end
       
