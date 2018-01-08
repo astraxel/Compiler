@@ -2,15 +2,16 @@ open Ast
 
 module Smap = Map.Make (String)
 module Sset = Set.Make (String) 
-type env = (typ, bool) Smap.t
-(*
+type env = typ Smap.t
+          
+
 exception Erreur_typage of typ * typ * loc
 exception Erreur_types_egaux of typ *loc *typ * loc
 exception Erreur_types_non_egaux of typ *loc * typ * loc 
 exception Erreur_mut of expr * loc
 exception Erreur_vide of loc
 exception Erreur_lvalue of expr * loc
-*)
+
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 let get_mut = function
