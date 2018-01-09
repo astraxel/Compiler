@@ -16,8 +16,6 @@ exception Erreur_no_expr of expr * loc
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 (*TODO les hashtbl, les tref plusieurs fois, le e.x avec l histoire de regarder si ce st dans l ident , les histoires de t1<T2 *)
-(* TODO on va rajouter partout des rattrapages d'erreurs a la fin pour verfier si c'est pas une expr normale on regarde si c est
- * une left value ou dans le cas des regles de mut, si c est pas un statement #SOBJ *)
 
 let rec type_list  env e = 
    match e with 
