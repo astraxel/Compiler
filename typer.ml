@@ -13,6 +13,7 @@ exception Erreur_vide of loc
 exception Erreur_lvalue of expr * loc
 exception Erreur_len of int * int *loc 
 exception Erreur_no_expr of expr * loc
+exception Erreur_types_non_coherents of typ * loc * typ * loc
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 (*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident , les histoires de t1<T2 *)
@@ -21,7 +22,7 @@ exception Erreur_no_expr of expr * loc
 let rec deref_type t = if t =Tref (m, t1) then deref_type t1 else t
    
 
-let rec type_adapte env (t1, t2) =
+let rec type_adapte (t1, t2) =
    match deref_type t1 with
       |deref_type t2 -> true
       |_ -> false
@@ -217,11 +218,14 @@ let type_expr env (e , loc) = match e with
          | Affect -> 
             let (_, e1t, b) as e1type =type_mut_value_expr env e1 in 
             let (_, e2t) as e2type =type_expr env e2 in
-            
-            begin match b with
-               |false -> raise ( Erreur_mut (e1 , loc))
-               |true -> (Eassignement (e1type, e2type), Tunit ) 
-            end
+            let r = type_adapte (e1t, e2t) in
+            begin match r with
+               |true -> 
+                  begin match b with 
+                     |false -> raise ( Erreur_mut (e1 , loc))
+                     |true -> (TEbinop (e1type, e2type), Tunit ) 
+                  end
+               |false -> raise -> Erreur_types_non_coherents (e1, snd e1, e2, snd e2))      
       end
       
    |Elen e ->
