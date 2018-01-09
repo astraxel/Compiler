@@ -2,7 +2,7 @@ open Ast
 
 module Smap = Map.Make (String)
 module Sset = Set.Make (String) 
-type env = typ Smap.t
+type Env = (bool, typ) Smap.t
           
 
 exception Erreur_typage of typ * typ * loc
@@ -15,29 +15,64 @@ exception Erreur_len of int * int *loc
 exception Erreur_no_expr of expr * loc
 exception Erreur_types_non_coherents of typ * loc * typ * loc
 exception Erreur_non_declare of typ * loc
+exception Erreur_borrow of loc
+exception Erreur_struct_call of typ * ident * loc
+exception Erreur_not_mutable of loc
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 (*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident *)
 (* penser à la loc dans AST *)
 (* def la fonction check_bf *)
+(* list lenght *)
 
 
 let rec deref_type t = if t =Tref (m, t1) then deref_type t1 else t
    
-
 let rec type_adapte (t1, t2) =
    match deref_type t1 with
       |deref_type t2 -> true
       |_ -> false
-let rec type_no_borrow (e, loc ) =
-   match e with
-      |Unit -> true
-      |x -> 
-let rec type_bf env (e, loc)=
+ 
+let rec check_uni (list_ident) =
+   raise ()
+   
+ 
+let rec type_no_struct env (e, i) =
    match e with 
       |Unit -> true
       |x ->
-         let (_, xt) as x type =type_expr env x in 
+         let (_, xt) as xtype = type_expr env x in
+         begin match xt with
+            |Tstruct (i) -> (*TODO faire cttte partie avec le sous vec et verifie la gestion d'erreur *)
+            |_ -> raise (Error_struct_call (xt, i, snd xt))
+      |x::y::r -> 
+         let (_,xt) as xtype = type_expr env x in
+         let (_,yt) as ytype = type_expr env y in
+         begin match xt with 
+            |Tstruct (i) -> (*TODO faire cttte partie avec le sous vec et verifie la gestion d'erreur *)
+            |_ -> raise (Error_struct_call (xt, i, snd xt))
+            
+let rec type_no_borrow env (e ) =
+   match e with
+      |Unit -> true
+      |x -> 
+         let (_, xt) as xtype = type_expr env x in
+         begin match check_no_borrow xt with (*TODO definir la fonction check_no_borrow *)
+            |true -> true
+            |false -> raise (Error_borrow (snd x))
+         end
+      |x::y::r -> 
+         let (_,xt) as xtype = type_expr env x in
+         let (_,yt) as ytype = type_expr env y in
+         begin match check_no_borrow xt with (*TODO definir la fonction check_no_borrow *)
+            |true -> type_no_borrow env (y::r)
+            |false -> raise (Error_borrow (snd x))
+      
+let rec type_bf env (e)=
+   match e with 
+      |Unit -> true
+      |x ->
+         let (_, xt) as xtype =type_expr env x in 
          begin match check_bf xt with  (* TODO definir la fonction check_bf *)
             |true -> true
             |false -> raise (Error_non_declare (xt, snd x))
@@ -46,7 +81,7 @@ let rec type_bf env (e, loc)=
          let (_, xt) as xtype = type_expr env x in 
          let (_, yt) as ytype = type_expr env y in 
          begin match check_bf xt with (* TODO definir la fonction check_bf *)
-            |true -> type_bf env (y::r, loc) 
+            |true -> type_bf env (y::r) 
             |false -> raise (Error_non_declare (xt, snd x))
          end
          
@@ -56,13 +91,12 @@ let rec type_list env (e, loc) =
       |x -> 
          let (_,xt) as xtype = type_expr env x in
          xt
-      
       |x::y::r -> 
          let (_, xt) as xtype =type_expr env x in
          let (_, yt) as ytype = type_expr env y in
          begin match xt with
             |yt -> type_list env (y::r, loc)
-            |_-> raise (Erreur_types_non_egaux (xt, snd x , yt, snd y))
+            |_ -> raise (Erreur_types_non_egaux (xt, snd x , yt, snd y))
          end
          
 let rec type_arg_comparaison_list env (list_typ, list_expr) =
@@ -110,7 +144,11 @@ let rec type_arg_list env (list_typ, list_expr ) =
          end
       end
 
-let type_mut_expr env (e, loc) = match e with (* TODO premiere regele de mut *)
+let type_mut_expr env (e, loc) = match e with 
+   |Eident name -> let (m, t) = Smap.find name env in
+      begin match m with 
+         |true -> (TEident (name), t, true)
+         |false -> raise ( Error_not_mutable (snd name))
 
    |Eselect (e1, e2) ->
       let (_, e1t, b) as e1type =type_mut_expr env e1 in
@@ -160,6 +198,9 @@ let type_mut_expr env (e, loc) = match e with (* TODO premiere regele de mut *)
       
 let type_lvalue_expr env (e, loc ) = match e with 
    (* deref done, deuxieme, crochet done, struct, struct bis done *)
+   |Eident name -> 
+      let (m, t) = Smap.find name env in
+      (TEident (name), t)
    |Eunop (unop , e) ->
       begin match unop with 
          |Deref ->
