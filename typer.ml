@@ -27,7 +27,7 @@ let rec type_adapte env (t1, t2)
       |_ -> false
             
 
-let rec type_list  env e = 
+let rec type_list env (e, loc) = 
    match e with 
       |Unit -> raise (Erreur_vide (loc))
       |x -> 
