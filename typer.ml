@@ -18,7 +18,7 @@ exception Erreur_types_non_coherents of typ * loc * typ * loc
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 (*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident *)
 (* penser au print car not sure*)
-(* check regles mut du milieu *)
+
 
 let rec deref_type t = if t =Tref (m, t1) then deref_type t1 else t
    
@@ -209,7 +209,7 @@ let type_expr env (e , loc) = match e with
             let (_, et, b) as etype = type_mut_expr env e in
             begin match b with
                |false -> raise ( Erreur_mut (e , loc))
-               |true -> (TEunop (unop, etype), Tref (m, et)) 
+               |true -> (TEunop (unop, etype), Tref (b, et)) 
             end
       end
    |Ebinop (e1, op , e2) ->
