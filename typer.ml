@@ -16,17 +16,27 @@ exception Erreur_no_expr of expr * loc
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 (*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident , les histoires de t1<T2 *)
+(*TODO vect *)
+
+let rec deref_type t = if t =Tref (m, t1) then deref_type t1 else t
+   
+
+let rec type_adapte env (t1, t2) 
+   match deref_type t1 with
+      |deref_type t2 -> true
+      |_ -> false
+            
 
 let rec type_list  env e = 
    match e with 
       |Unit -> raise (Erreur_vide (loc))
       |x -> 
-         let (_,xt) as xtype = type_expr env x
+         let (_,xt) as xtype = type_expr env x in
          xt
       
       |x::y::r -> 
-         let (_, xt) as xtype =type_expr env x
-         let (_, yt) as ytype = type_expr env y
+         let (_, xt) as xtype =type_expr env x in
+         let (_, yt) as ytype = type_expr env y in
          begin match xt with
             |yt -> type_list env y::r
             |_-> raise (Erreur_types_non_egaux (xt, snd x , yt, snd y))
@@ -56,40 +66,23 @@ let type_mut_expr env (e, loc) = match e with (* TODO premiere regele de mut *)
    |Eselect (e1, e2) ->
       let (_, e1t, b) as e1type =type_mut_expr env e1 in
       let (_, e2t) as e2type =type_expr env e2 in
-      begin match e1t with 
+      let t1 = deref_type e1t in
+      begin match t1 with 
          |Tvec -> begin match e2t with 
             |Tint -> (TEselect (e1type, e2type ), e1t, b)
             |_ -> raise (Erreur_typage (e2t, Tint, snd e2))
-            end
-         |Tref ->
-            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
-            begin match e3t with
-               |Tvec -> begin match e2t with 
-                  |Tint -> (TEselect (e1type, e2type), e1t, b)
-                  |_ -> raise ( Erreur_typage (e2t, Tint, snd e2))
-                  end
-               |_ -> raise (Erreur_typage (se3t , Tvec, snd e1))
             end
          |_ -> raise (Erreur_typage (e1t, Tvec, snd e1))
       end
    
    |Eattribute (e, i) ->
       let (_,et, b) as etype = type_mut_expr env e in
-      begin match et with 
+      let t1 = deref_type et in
+      begin match t1 with 
          |Tstruct  -> 
-            let t = check_in (et, i) 
+            let t = check_in (et, i) in
             (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
             (TEattribute (etype, ident), t, b)
-         
-         | Tref -> 
-            let (_, e2t, _) as e2type = type_mut_expr env *e in
-            begin match e2t with
-               |Tstruct ->
-                  let t = check_in (et, i) 
-                  (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
-                  (TEattribute (etype, ident), t, b)
-               | _ -> raise ( Erreur_typage (e2t , Tstruct, snd e))
-         
          |_ -> raise (Erreur_typage (et, Tstruct, snd e))
       end
    |Eunop (unop, e) ->
@@ -102,21 +95,12 @@ let type_mut_expr env (e, loc) = match e with (* TODO premiere regele de mut *)
             end
    |Eattribute (e, i) ->
       let (a,et, b) as etype = type_mut_expr env e in
-      begin match et with 
+      let t1 = deref_type et in
+      begin match t1 with 
          |Tstruct  -> 
-            let t = check_in (et, i) 
+            let t = check_in (et, i) in
             (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
             (TEattribute (etype, ident), t, b)
-         
-         | Tref ->
-            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
-            begin match e3t with
-               |Tstruct -> 
-                   let t = check_in (e3t, i) 
-                   (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
-                   (TEattribute (etype, ident), t, b)
-               | _ -> raise ( Erreur_typage (e3t , Tstruct, snd e))
-            end
          |_ -> raise (Erreur_typage (et, Tstruct, snd e))
       end
    |_ -> raise (Erreur_mut (e, snd e))
@@ -137,46 +121,29 @@ let type_lvalue_expr env (e, loc ) = match e with
    |Eselect (e1 , e2) ->
       let (_, e1t) as e1type =type_lvalue_expr env e1 in
       let (_, e2t) as e2type =type_expr env e2 in
-      begin match e1t with 
+      let t1 = deref_type e1t in
+      begin match t1 with 
          |Tvec -> begin match e2t with
             |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
             | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
-            end
-         |Tref ->
-            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
-            begin match e3t with
-               |Tvec-> begin match e2t with
-                  |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
-                  | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
-               end
-               |_ -> raise (Erreur_typage (e3t, Tvec , snd e1))
             end
          | _-> raise ( Erreur_typage (e1t, Tvec, snd e1))
       end 
   |Eattribute (e, i) ->
       let (_, et) as etype = type_lvalue_expr env e in
-      begin match et with 
+      let t1 = deref_type et in
+      begin match t1 with 
          |Tstruct  -> 
-            let t = check_in (et, i) 
+            let t = check_in (et, i) in
             (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
             (TEattribute (etype, ident), t)
-         
-         | Tref -> 
-            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
-            begin match e3t with
-               |Tstruct -> 
-                   let t = check_in (et, i) 
-                   (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
-                   (TEattribute (etype, ident), t)
-               | _ -> raise ( Erreur_typage (e3t , Tstruct, snd e))
-            end
          |_ -> raise (Erreur_typage (et, Tstruct, snd e))
       end
    |Sobj (m, i, i1, s) ->
-      let a = find.hastbl (i) (* TODO codercette hastbl *)
+      let a = find.hastbl (i) in(* TODO codercette hastbl *)
       begin match a.len with 
          |s.len ->
-            let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i))
+            let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i)) in
             begin match r with 
                |true -> (* regarder si c est bien une permutation ! *) 
                   
@@ -255,14 +222,9 @@ let type_expr env (e , loc) = match e with
       
    |Elen e ->
       let (_, et) as etype =type_expr env e in
-      begin match et with 
+      let t1 = type_deref et in
+      begin match t1 with 
          |Tvec -> (TEvect e , Tint )
-         |Tref -> 
-            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
-            begin match e3t with
-               |Tvec -> (TEvect e, Tint )
-               |_ -> raise (Erreur_typage ( e3t, Tvec, snd e)) 
-            end
          |_ -> raise ( Erreur_typage ( et, Tvec , snd e))
       end      
   
@@ -273,17 +235,17 @@ let type_expr env (e , loc) = match e with
   |Eprint s -> (TEprint s , Tunit)
   
   |Ecall (i, e) -> 
-     let a = find.hastbl (i) (* TODO coder cette hastbl *)
+     let a = find.hastbl (i) in (* TODO coder cette hastbl *)
      begin match a.len with
         |e.len ->
-           let r = type_arg_list env (a, e) 
+           let r = type_arg_list env (a, e) in
            begin match r with 
               | true -> (TEcall (i, e), type de retour) (* TODO trouver ce type de retour *)
            end
         |_ -> raise (Erreur_len (e.len , a.len, snd e))
      end
   (* tout ce qui suit permet de vérifier si l'expression n'est pas une l value car implique que c'est une value normale *)   
-  |Eunop (unop , e) ->
+   |Eunop (unop , e) ->
       begin match unop with 
          |Deref ->
             let (_, et) as etype = type_expr env e in
@@ -295,47 +257,29 @@ let type_expr env (e , loc) = match e with
    |Eselect (e1 , e2) ->
       let (_, e1t) as e1type =type_lvalue_expr env e1 in
       let (_, e2t) as e2type =type_expr env e2 in
-      begin match e1t with 
+      let t1 = deref_type e1t in
+      begin match t1 with 
          |Tvec -> begin match e2t with
             |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
             | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
             end
-         |Tref -> 
-            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
-            begin match e3t with
-               |Tvec-> 
-                  begin match e2t with
-                     |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
-                     | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
-                  end
-               |_ -> raise (Erreur_typage (e3t, Tvec , snd e1)) 
-            end
          | _-> raise ( Erreur_typage (e1t, Tvec, snd e1))
       end 
   |Eattribute (e, i) ->
-      let (_,et) as etype = type_lvalue_expr env e in
-      begin match et with 
+      let (_, et) as etype = type_lvalue_expr env e in
+      let t1 = deref_type et in
+      begin match t1 with 
          |Tstruct  -> 
-            let t = check_in (et, i) 
+            let t = check_in (et, i) in
             (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
             (TEattribute (etype, ident), t)
-         
-         | Tref -> 
-            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
-            begin match e3t with
-               |Tstruct ->
-                   let t = check_in (et, i) 
-                   (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
-                   (TEattribute (etype, ident), t)
-               | _ -> raise ( Erreur_typage (e3t , Tstruct, snd e))
-            end
          |_ -> raise (Erreur_typage (et, Tstruct, snd e))
       end
-  |Sobj (m, i, i1, s) ->
-      let a = find.hastbl (i) (* TODO codercette hastbl *)
+   |Sobj (m, i, i1, s) ->
+      let a = find.hastbl (i) in(* TODO codercette hastbl *)
       begin match a.len with 
          |s.len ->
-            let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i))
+            let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i)) in
             begin match r with 
                |true -> (* regarder si c est bien une permutation ! *) 
                   
@@ -369,10 +313,10 @@ and type_stmt env (s, loc ) = match s with
       (TSif (stype), st) 
       
    |Sobj (m, i, i1, s) ->
-      let a = find.hastbl (i) (* TODO codercette hastbl *)
+      let a = find.hastbl (i) in (* TODO codercette hastbl *)
       begin match a.len with 
          |s.len ->
-            let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i))
+            let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i)) in
             begin match r with 
                |true -> (* regarder si c est bien une permutation ! *) 
                   
