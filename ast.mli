@@ -33,6 +33,7 @@ and vexpr =
   |Evect of expr list
   |Eprint of string
   |Ebloc of bloc
+  |Eassignement of expr * expr
 
  and bloc =
    |Ubloc of stmt list
