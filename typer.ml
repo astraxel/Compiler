@@ -10,14 +10,16 @@ exception Erreur_types_egaux of typ *loc *typ * loc
 exception Erreur_types_non_egaux of typ *loc * typ  
 exception Erreur_mut of expr * loc
 exception Erreur_vide of loc
-exception Erreur_lvalue of expr * loc
+exception Erreur_lvalue of expr loc
 exception Erreur_len of int * int *loc 
 exception Erreur_no_expr of expr * loc
 exception Erreur_types_non_coherents of typ * loc * typ * loc
+exception Erreur_non_declare of typ * loc
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 (*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident *)
-(* penser au print car not sure*)
+(* penser à la loc dans AST *)
+(* def la fonction check_bf *)
 
 
 let rec deref_type t = if t =Tref (m, t1) then deref_type t1 else t
@@ -27,8 +29,27 @@ let rec type_adapte (t1, t2) =
    match deref_type t1 with
       |deref_type t2 -> true
       |_ -> false
-            
-
+let rec type_no_borrow (e, loc ) =
+   match e with
+      |Unit -> true
+      |x -> 
+let rec type_bf env (e, loc)=
+   match e with 
+      |Unit -> true
+      |x ->
+         let (_, xt) as x type =type_expr env x in 
+         begin match check_bf xt with  (* TODO definir la fonction check_bf *)
+            |true -> true
+            |false -> raise (Error_non_declare (xt, snd x))
+         end
+      |x::y::r ->
+         let (_, xt) as xtype = type_expr env x in 
+         let (_, yt) as ytype = type_expr env y in 
+         begin match check_bf xt with (* TODO definir la fonction check_bf *)
+            |true -> type_bf env (y::r, loc) 
+            |false -> raise (Error_non_declare (xt, snd x))
+         end
+         
 let rec type_list env (e, loc) = 
    match e with 
       |Unit -> raise (Erreur_vide (loc))
@@ -40,9 +61,10 @@ let rec type_list env (e, loc) =
          let (_, xt) as xtype =type_expr env x in
          let (_, yt) as ytype = type_expr env y in
          begin match xt with
-            |yt -> type_list env y::r
+            |yt -> type_list env (y::r, loc)
             |_-> raise (Erreur_types_non_egaux (xt, snd x , yt, snd y))
          end
+         
 let rec type_arg_comparaison_list env (list_typ, list_expr) =
    match list_typ with 
       |Unit -> true  
@@ -325,7 +347,8 @@ let type_expr env (e , loc) = match e with
   |_ -> raise (Erreur_no_expr (e, snd e)) 
   
 
-let type_decl_struct (i, i1) =
+let type_decl_struct (i, i1) = 
+   
 
 let type decl_fun (i, arg, b, t)=
 
@@ -382,7 +405,7 @@ and type_bloc env (b, loc) = match b with
             let (_,bt) as btype =type_bloc env b in
             (TVbloc (stype, btype), bt) (* {e ; b} est du type de b *)
          |Sobj (m, x, _) | Saff (m, x, _, _)->
-            let (_,bt) as btype =type_bloc (Smap.add (m*x)  (type_stmt env s ) env) in (* TODO check si m*x est legit *)
+            let (_,bt) as btype =type_bloc (Smap.add (m*x) (type_stmt env s ) env) in (* TODO check si m*x est legit *)
             (TVbloc (stype, btype), bt )
       end
       
