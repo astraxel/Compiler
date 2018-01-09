@@ -178,7 +178,7 @@ let type_expr env (e , loc) = match e with
             let (_, et, b) as etype = type_mut_expr env e in
             begin match b with
                |false -> raise ( Erreur_mut (e , loc))
-               |true -> (TEunop (unop, etype), Tref ) 
+               |true -> (TEunop (unop, etype), Tref (m, et)) 
             end
       end
    |Ebinop (e1, op , e2) ->
