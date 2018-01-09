@@ -7,10 +7,11 @@ type env = typ Smap.t
 
 exception Erreur_typage of typ * typ * loc
 exception Erreur_types_egaux of typ *loc *typ * loc
-exception Erreur_types_non_egaux of typ *loc * typ * loc 
+exception Erreur_types_non_egaux of typ *loc * typ  
 exception Erreur_mut of expr * loc
 exception Erreur_vide of loc
 exception Erreur_lvalue of expr * loc
+exception Erreur_len of int * int *loc 
 
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
@@ -33,20 +34,20 @@ let rec type_list  env e =
    
 let rec type_arg_list env (list_typ, list_expr ) =
    match list_typ with 
-      |Unit -> raise (Erreur_vide (loc)) (* sur de vouloir creer une erreur ? *)
+      |Unit -> true  
       | x-> begin match list_expr with 
          |y -> begin match snd x with
-            |snd y -> true (* Une valeur random pour verifier *)
-            |_ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * snd y * snd (fst y) )) (* verifier que snd fst x renvoie la loc de x *)
+            | y -> true (* Une valeur random pour verifier *)
+            | _ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * y )) (* verifier que snd fst x renvoie la loc de x *)
          end
       end 
       | x::y::r -> begin match list_expr with 
          |w::z::o -> begin match snd x with
-            |snd w -> begin match snd y with
-               |snd z -> type_arg_list (y::r , z::o)
-               |_ -> raise (Erreur_types_non_egaux (snd y * snd (fst y) * snd z * snd (fst z) ))
+            | w -> begin match snd y with
+               | z -> type_arg_list (y::r , z::o)
+               |_ -> raise (Erreur_types_non_egaux (snd y * snd (fst y) * z ))
             end
-            |_ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * snd w * snd (fst w) )) (* De meme *)
+            |_ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * w )) (* De meme *)
          end
       end
 
@@ -204,8 +205,8 @@ let type_expr env (e , loc) = match e with
                   end
                |_ -> raise ( Erreur_typage ( e1t, Tbool, snd e1 ))
          
-         | Eassignement -> (*TODO add Eassignement à L'ast *)
-            let (_, e1t, b) as e1type =type_mut_value_expr env e1 in (* mut or gauche ? *)
+         | Affect -> 
+            let (_, e1t, b) as e1type =type_mut_value_expr env e1 in 
             let (_, e2t) as e2type =type_expr env e2 in
             
             begin match b with
@@ -229,7 +230,21 @@ let type_expr env (e , loc) = match e with
      (TEvect (type_expr env e),r)
 
   |Eprint s -> (TEprint s , Tunit)
+  
+  |Ecall (i, e) -> 
+     let a = find.hastbl (i) (* TODO coder cette hastbl *)
+     begin match a.len with
+        |e.len ->
+           let r = type_arg_list env (a, e) 
+           begin match r with 
+              | true -> (TEcall (i, e), type de retour) (* TODO trouver ce type de retour *)
+           end
+        |_ -> raise (Erreur_len (e.len , a.len, snd e))
+     end
+     
+let type_decl_struct (i, i1) =
 
+let type decl_fun (i, arg, b, t)=
 
 and type_stmt env (s, loc ) = match s with 
    |Sreturn e -> begin match e with 
@@ -249,6 +264,19 @@ and type_stmt env (s, loc ) = match s with
    |Sif s ->
       let (_,st) as stype = type_if env s in
       (TSif (stype), st) 
+      
+   |Sobj (m, i, i1, s) ->
+      let a = find.hastbl (i) (* TODO codercette hastbl *)
+      begin match a.len with 
+         |s.len ->
+            let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i))
+            begin match r with 
+               |true -> (* regarder si c est bien une permutation ! *) 
+                  
+            end
+         |_ -> raise ( Erreur_len (s.len , a.len, snd s ))
+      end
+              
 
 and type_bloc env (b, loc) = match b with
    |Ubloc (s) -> 
