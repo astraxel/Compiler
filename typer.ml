@@ -16,8 +16,9 @@ exception Erreur_no_expr of expr * loc
 exception Erreur_types_non_coherents of typ * loc * typ * loc
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
-(*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident , les histoires de t1<T2 *)
+(*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident *)
 (* penser au print car not sure*)
+(* check regles mut du milieu *)
 
 let rec deref_type t = if t =Tref (m, t1) then deref_type t1 else t
    
@@ -41,6 +42,31 @@ let rec type_list env (e, loc) =
          begin match xt with
             |yt -> type_list env y::r
             |_-> raise (Erreur_types_non_egaux (xt, snd x , yt, snd y))
+         end
+let rec type_arg_comparaison_list env (list_typ, list_expr) =
+   match list_typ with 
+      |Unit -> true  
+      | x-> begin match list_expr with 
+         |y -> 
+            let r =type_adapte (y, snd x) in
+            begin match r with
+               | true -> true (* Une valeur random pour verifier *)
+               | false -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * y )) (* verifier que snd fst x renvoie la loc de x *)
+            end
+         end
+      end 
+      | x::y::r -> begin match list_expr with 
+         |w::z::o -> 
+            let r = type_adapte (w, snd x) in
+            begin match r with
+               | true -> 
+                  let r1 = type_adapte (z, snd y) in
+                  begin match r1 with
+                     |true  -> type_arg_list (y::r , z::o)
+                     |false-> raise (Erreur_types_non_egaux (snd y * snd (fst y) * z ))
+                  end
+            |false-> raise (Erreur_types_non_egaux (snd x * snd (fst x) * w )) (* De meme *)
+            end
          end
    
 let rec type_arg_list env (list_typ, list_expr ) =
@@ -246,7 +272,7 @@ let type_expr env (e , loc) = match e with
      let a = find.hastbl (i) in (* TODO coder cette hastbl *)
      begin match a.len with
         |e.len ->
-           let r = type_arg_list env (a, e) in
+           let r = type_arg_comparaison_list env (a, e) in
            begin match r with 
               | true -> (TEcall (i, e), type de retour) (* TODO trouver ce type de retour *)
            end
