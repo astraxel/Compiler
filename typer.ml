@@ -15,7 +15,7 @@ exception Erreur_len of int * int *loc
 exception Erreur_no_expr of expr * loc
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
-(*TODO les hashtbl, les tref plusieurs fois, le e.x avec l histoire de regarder si ce st dans l ident , les histoires de t1<T2 *)
+(*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident , les histoires de t1<T2 *)
 
 let rec type_list  env e = 
    match e with 
@@ -257,9 +257,12 @@ let type_expr env (e , loc) = match e with
       let (_, et) as etype =type_expr env e in
       begin match et with 
          |Tvec -> (TEvect e , Tint )
-         |Tref -> begin match snd a with
-            |Tvec -> (TEvect e, Tint )
-            |_ -> raise (Erreur_typage ( snd a, Tvec, snd e)) (*Considere que Tref peut etre applique qu'une fois *)
+         |Tref -> 
+            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
+            begin match e3t with
+               |Tvec -> (TEvect e, Tint )
+               |_ -> raise (Erreur_typage ( e3t, Tvec, snd e)) 
+            end
          |_ -> raise ( Erreur_typage ( et, Tvec , snd e))
       end      
   
