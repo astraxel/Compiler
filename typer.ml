@@ -12,7 +12,7 @@ exception Erreur_mut of expr * loc
 exception Erreur_vide of loc
 exception Erreur_lvalue of expr * loc
 exception Erreur_len of int * int *loc 
-
+exception Erreur_no_expr of expr * loc
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 (*TODO les hashtbl, les tref plusieurs fois, le e.x avec l histoire de regarder si ce st dans l ident , les histoires de t1<T2 *)
@@ -98,6 +98,23 @@ let type_mut_expr env (e, loc) = match e with (* TODO premiere regele de mut *)
                |Tref -> (TEunop (unop, etype), Tint, b)
                |_ -> raise (Erreur_typage (et, Tref, snd e))
             end
+   |Eattribute (e, i) ->
+      let (a,et, b) as etype = type_mut_expr env e in
+      begin match et with 
+         |Tstruct  -> 
+            let t = check_in (et, i) 
+            (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+            (TEattribute (etype, ident), t, b)
+         
+         | Tref -> begin match snd a with
+            |Tstruct -> (*on considere que Tref peut etre applique su'une fois *)
+                let t = check_in (et, i) 
+                (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+                (TEattribute (etype, ident), t, b)
+            | _ -> raise ( Erreur_typage (snd a , Tstruct, snd e))
+         
+         |_ -> raise (Erreur_typage (et, Tstruct, snd e))
+      end
    |_ -> raise (Erreur_mut (e, snd e))
 
  
@@ -147,6 +164,17 @@ let type_lvalue_expr env (e, loc ) = match e with
          
          |_ -> raise (Erreur_typage (et, Tstruct, snd e))
       end
+   |Sobj (m, i, i1, s) ->
+      let a = find.hastbl (i) (* TODO codercette hastbl *)
+      begin match a.len with 
+         |s.len ->
+            let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i))
+            begin match r with 
+               |true -> (* regarder si c est bien une permutation ! *) 
+                  
+            end
+         |_ -> raise ( Erreur_len (s.len , a.len, snd s ))
+      end
    |_ -> (Erreur_lvalue (e, snd e))
    
 let type_expr env (e , loc) = match e with 
@@ -155,16 +183,16 @@ let type_expr env (e , loc) = match e with
    |Eunop ( unop , e) -> 
       | begin match unop with 
          |UMinus ->
-            let (_, et) as etype =type_expr env e in 
-            begin match et with 
-               |Tint -> (TEunop ( unop , etype), Tint) 
+            let (_, et) as etype=type_expr env e in
+            begin match et with
+               |Tint -> (TEunop ( unop , etype), Tint)
                | _-> raise ( Erreur_typage ( et,   Tint , snd e ))
             end
          |Not ->
             let (_, et) as etype =type_expr env e in
             begin match et with 
                | Tbool -> (TEunop (unop, etype ),Tbool)
-               |_ -> raise ( Erreur_typage ( et, Tbool , snd e))
+               | false -> raise ( Erreur_typage ( et, Tbool , snd e))
             end
          
          |SharedBorrow ->
@@ -243,7 +271,64 @@ let type_expr env (e , loc) = match e with
            end
         |_ -> raise (Erreur_len (e.len , a.len, snd e))
      end
-     
+  (* tout ce qui suit permet de vérifier si l'expression n'est pas une l value car implique que c'est une value normale *)   
+  |Eunop (unop , e) ->
+      begin match unop with 
+         |Deref ->
+            let (_, et) as etype = type_expr env e in
+            begin match et with
+               |Tref -> (TEunop (unop, etype) , Tint)
+               |_-> raise ( Erreur_typage (et , Tref, snd e))
+            end
+      end
+   |Eselect (e1 , e2) ->
+      let (a, e1t) as e1type =type_lvalue_expr env e1 in
+      let (_, e2t) as e2type =type_expr env e2 in
+      begin match e1t with 
+         |Tvec -> begin match e2t with
+            |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
+            | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
+            end
+         |Tref -> begin match snd a with
+            |Tvec-> begin match e2t with
+               |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
+               | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
+               end
+            |_ -> raise (Erreur_typage (snd a, Tvec , snd e1)) (* Considere que Tref peut etre applique qu'une fois *)
+            end
+         | _-> raise ( Erreur_typage (e1t, Tvec, snd e1))
+      end 
+  |Eattribute (e, i) ->
+      let (a,et) as etype = type_lvalue_expr env e in
+      begin match et with 
+         |Tstruct  -> 
+            let t = check_in (et, i) 
+            (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+            (TEattribute (etype, ident), t)
+         
+         | Tref -> begin match snd a with
+            |Tstruct -> (*on considere que Tref peut etre applique su'une fois *)
+                let t = check_in (et, i) 
+                (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+                (TEattribute (etype, ident), t)
+            | _ -> raise ( Erreur_typage (snd a , Tstruct, snd e))
+         
+         |_ -> raise (Erreur_typage (et, Tstruct, snd e))
+      end
+  |Sobj (m, i, i1, s) ->
+      let a = find.hastbl (i) (* TODO codercette hastbl *)
+      begin match a.len with 
+         |s.len ->
+            let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i))
+            begin match r with 
+               |true -> (* regarder si c est bien une permutation ! *) 
+                  
+            end
+         |_ -> raise ( Erreur_len (s.len , a.len, snd s ))
+      end
+  |_ -> raise (Erreur_no_expr (e, snd e)) 
+  
+
 let type_decl_struct (i, i1) =
 
 let type decl_fun (i, arg, b, t)=
