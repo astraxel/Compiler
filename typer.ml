@@ -21,7 +21,7 @@ exception Erreur_no_expr of expr * loc
 let rec deref_type t = if t =Tref (m, t1) then deref_type t1 else t
    
 
-let rec type_adapte env (t1, t2) 
+let rec type_adapte env (t1, t2) =
    match deref_type t1 with
       |deref_type t2 -> true
       |_ -> false
