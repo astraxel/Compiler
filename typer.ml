@@ -54,37 +54,41 @@ let rec type_arg_list env (list_typ, list_expr ) =
 let type_mut_expr env (e, loc) = match e with (* TODO premiere regele de mut *)
 
    |Eselect (e1, e2) ->
-      let (a, e1t, b) as etype =type_mut_expr env (e, loc)
-      let (_, et) as etype =type_expr env e2 in
+      let (_, e1t, b) as e1type =type_mut_expr env e1 in
+      let (_, e2t) as e2type =type_expr env e2 in
       begin match e1t with 
          |Tvec -> begin match e2t with 
             |Tint -> (TEselect (e1type, e2type ), e1t, b)
             |_ -> raise (Erreur_typage (e2t, Tint, snd e2))
             end
-         |Tref -> begin match snd a with 
-            |Tvec -> begin match e2t with 
-               |Tint -> (TEselect (e1type, e2type), e1t, b)
-               |_ -> raise ( Erreur_typage (e2t, Tint, snd e2))
-               end
-            |_ -> raise (Erreur_typage (snd a , Tvec, snd e1))
+         |Tref ->
+            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
+            begin match e3t with
+               |Tvec -> begin match e2t with 
+                  |Tint -> (TEselect (e1type, e2type), e1t, b)
+                  |_ -> raise ( Erreur_typage (e2t, Tint, snd e2))
+                  end
+               |_ -> raise (Erreur_typage (se3t , Tvec, snd e1))
             end
          |_ -> raise (Erreur_typage (e1t, Tvec, snd e1))
       end
    
    |Eattribute (e, i) ->
-      let (a,et, b) as etype = type_mut_expr env e in
+      let (_,et, b) as etype = type_mut_expr env e in
       begin match et with 
          |Tstruct  -> 
             let t = check_in (et, i) 
             (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
             (TEattribute (etype, ident), t, b)
          
-         | Tref -> begin match snd a with
-            |Tstruct -> (*on considere que Tref peut etre applique su'une fois *)
-                let t = check_in (et, i) 
-                (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
-                (TEattribute (etype, ident), t, b)
-            | _ -> raise ( Erreur_typage (snd a , Tstruct, snd e))
+         | Tref -> 
+            let (_, e2t, _) as e2type = type_mut_expr env *e in
+            begin match e2t with
+               |Tstruct ->
+                  let t = check_in (et, i) 
+                  (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+                  (TEattribute (etype, ident), t, b)
+               | _ -> raise ( Erreur_typage (e2t , Tstruct, snd e))
          
          |_ -> raise (Erreur_typage (et, Tstruct, snd e))
       end
@@ -104,13 +108,15 @@ let type_mut_expr env (e, loc) = match e with (* TODO premiere regele de mut *)
             (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
             (TEattribute (etype, ident), t, b)
          
-         | Tref -> begin match snd a with
-            |Tstruct -> (*on considere que Tref peut etre applique su'une fois *)
-                let t = check_in (et, i) 
-                (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
-                (TEattribute (etype, ident), t, b)
-            | _ -> raise ( Erreur_typage (snd a , Tstruct, snd e))
-         
+         | Tref ->
+            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
+            begin match e3t with
+               |Tstruct -> 
+                   let t = check_in (e3t, i) 
+                   (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+                   (TEattribute (etype, ident), t, b)
+               | _ -> raise ( Erreur_typage (e3t , Tstruct, snd e))
+            end
          |_ -> raise (Erreur_typage (et, Tstruct, snd e))
       end
    |_ -> raise (Erreur_mut (e, snd e))
@@ -129,37 +135,41 @@ let type_lvalue_expr env (e, loc ) = match e with
             end
       end
    |Eselect (e1 , e2) ->
-      let (a, e1t) as e1type =type_lvalue_expr env e1 in
+      let (_, e1t) as e1type =type_lvalue_expr env e1 in
       let (_, e2t) as e2type =type_expr env e2 in
       begin match e1t with 
          |Tvec -> begin match e2t with
             |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
             | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
             end
-         |Tref -> begin match snd a with
-            |Tvec-> begin match e2t with
-               |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
-               | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
+         |Tref ->
+            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
+            begin match e3t with
+               |Tvec-> begin match e2t with
+                  |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
+                  | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
                end
-            |_ -> raise (Erreur_typage (snd a, Tvec , snd e1)) (* Considere que Tref peut etre applique qu'une fois *)
+               |_ -> raise (Erreur_typage (e3t, Tvec , snd e1))
             end
          | _-> raise ( Erreur_typage (e1t, Tvec, snd e1))
       end 
   |Eattribute (e, i) ->
-      let (a,et) as etype = type_lvalue_expr env e in
+      let (_, et) as etype = type_lvalue_expr env e in
       begin match et with 
          |Tstruct  -> 
             let t = check_in (et, i) 
             (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
             (TEattribute (etype, ident), t)
          
-         | Tref -> begin match snd a with
-            |Tstruct -> (*on considere que Tref peut etre applique su'une fois *)
-                let t = check_in (et, i) 
-                (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
-                (TEattribute (etype, ident), t)
-            | _ -> raise ( Erreur_typage (snd a , Tstruct, snd e))
-         
+         | Tref -> 
+            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
+            begin match e3t with
+               |Tstruct -> 
+                   let t = check_in (et, i) 
+                   (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+                   (TEattribute (etype, ident), t)
+               | _ -> raise ( Erreur_typage (e3t , Tstruct, snd e))
+            end
          |_ -> raise (Erreur_typage (et, Tstruct, snd e))
       end
    |Sobj (m, i, i1, s) ->
@@ -244,7 +254,7 @@ let type_expr env (e , loc) = match e with
       end
       
    |Elen e ->
-      let (a, et) as etype =type_expr env e in
+      let (_, et) as etype =type_expr env e in
       begin match et with 
          |Tvec -> (TEvect e , Tint )
          |Tref -> begin match snd a with
@@ -280,37 +290,42 @@ let type_expr env (e , loc) = match e with
             end
       end
    |Eselect (e1 , e2) ->
-      let (a, e1t) as e1type =type_lvalue_expr env e1 in
+      let (_, e1t) as e1type =type_lvalue_expr env e1 in
       let (_, e2t) as e2type =type_expr env e2 in
       begin match e1t with 
          |Tvec -> begin match e2t with
             |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
             | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
             end
-         |Tref -> begin match snd a with
-            |Tvec-> begin match e2t with
-               |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
-               | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
-               end
-            |_ -> raise (Erreur_typage (snd a, Tvec , snd e1)) (* Considere que Tref peut etre applique qu'une fois *)
+         |Tref -> 
+            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
+            begin match e3t with
+               |Tvec-> 
+                  begin match e2t with
+                     |Tint -> ( TEselect ( e1type , e2type ), e1t ) 
+                     | _-> raise ( Erreur_typage (e2t, Tint, snd e2))
+                  end
+               |_ -> raise (Erreur_typage (e3t, Tvec , snd e1)) 
             end
          | _-> raise ( Erreur_typage (e1t, Tvec, snd e1))
       end 
   |Eattribute (e, i) ->
-      let (a,et) as etype = type_lvalue_expr env e in
+      let (_,et) as etype = type_lvalue_expr env e in
       begin match et with 
          |Tstruct  -> 
             let t = check_in (et, i) 
             (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
             (TEattribute (etype, ident), t)
          
-         | Tref -> begin match snd a with
-            |Tstruct -> (*on considere que Tref peut etre applique su'une fois *)
-                let t = check_in (et, i) 
-                (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
-                (TEattribute (etype, ident), t)
-            | _ -> raise ( Erreur_typage (snd a , Tstruct, snd e))
-         
+         | Tref -> 
+            let (_, e3t, _) as e3type = type_mut_expr env *e1 in
+            begin match e3t with
+               |Tstruct ->
+                   let t = check_in (et, i) 
+                   (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
+                   (TEattribute (etype, ident), t)
+               | _ -> raise ( Erreur_typage (e3t , Tstruct, snd e))
+            end
          |_ -> raise (Erreur_typage (et, Tstruct, snd e))
       end
   |Sobj (m, i, i1, s) ->
