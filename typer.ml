@@ -16,7 +16,7 @@ exception Erreur_no_expr of expr * loc
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
 (*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident , les histoires de t1<T2 *)
-(*TODO vect *)
+(* penser au print car not sure*)
 
 let rec deref_type t = if t =Tref (m, t1) then deref_type t1 else t
    
@@ -228,12 +228,12 @@ let type_expr env (e , loc) = match e with
       let (_, et) as etype =type_expr env e in
       let t1 = type_deref et in
       begin match t1 with 
-         |Tvec -> (TEvect e , Tint )
+         |Tvec -> (TEvect etype , Tint )
          |_ -> raise ( Erreur_typage ( et, Tvec , snd e))
       end      
   
   | Evect e ->
-     let r=type_list env e
+     let r=type_list env e in
      (TEvect (type_expr env e),r)
 
   |Eprint s -> (TEprint s , Tunit)
