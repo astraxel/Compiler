@@ -14,20 +14,6 @@ exception Erreur_lvalue of expr * loc
 
 
 (* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
-let get_mut = function
-  | Tunit opt -> opt
-  | Tint opt -> opt
-  | Tbool opt -> opt
-  | Tvec (opt, _) -> opt
-  | Tbr (opt, _) -> opt
-  | Tstruc (opt, _) -> opt
-  
-let check_mutability (e, loc)  = 
-  let check_mut = function 
-    | None -> raise (Erreur_mut ( loc)) 
-    | Some false -> false
-    | _ -> true
-  in check_mut (get_mut e)
 
 
 let rec type_list  env e = 
@@ -237,8 +223,6 @@ let type_expr env (e , loc) = match e with
             |_ -> raise (Erreur_typage ( snd a, Tvec, snd e)) (*Considere que Tref peut etre applique qu'une fois *)
          |_ -> raise ( Erreur_typage ( et, Tvec , snd e))
       end      
-   
-   (* valeur gauche *)
   
   | Evect e ->
      let r=type_list env e
@@ -246,16 +230,6 @@ let type_expr env (e , loc) = match e with
 
   |Eprint s -> (TEprint s , Tunit)
 
-and type_decl env (d, loc) = match d with
-   |Ddecl_fun (i, a , b , t) ->
-      
-   
-   |Ddecl_permutation (i, a, f ) -> (* Probablement passager *) 
-   
-   |Ddecl_struct (i, a) ->
-      match 
-      
-  
 
 and type_stmt env (s, loc ) = match s with 
    |Sreturn e -> begin match e with 
