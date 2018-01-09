@@ -90,7 +90,9 @@ let type_mut_expr env (e, loc) = match e with (* TODO premiere regele de mut *)
          |Deref ->
             let (_, et, b) as etype = type_mut_expr env e in
             begin match et with 
-               |Tref -> (TEunop (unop, etype), Tint, b)
+               |Tref (_, t) ->
+                  let t1 = deref_type t in
+                  (TEunop (unop, etype), t , b)
                |_ -> raise (Erreur_typage (et, Tref, snd e))
             end
    |Eattribute (e, i) ->
@@ -114,7 +116,9 @@ let type_lvalue_expr env (e, loc ) = match e with
          |Deref ->
             let (_, et) as etype = type_expr env e in
             begin match et with
-               |Tref -> (TEunop (unop, etype) , Tint)
+               |Tref (_, t) -> 
+                  let t1 = deref_type t in
+                  (TEunop (unop, etype) , t1)
                |_-> raise ( Erreur_typage (et , Tref, snd e))
             end
       end
@@ -250,7 +254,9 @@ let type_expr env (e , loc) = match e with
          |Deref ->
             let (_, et) as etype = type_expr env e in
             begin match et with
-               |Tref -> (TEunop (unop, etype) , Tint)
+               |Tref (_, t) -> 
+                  let t1 = deref_type t in
+                  ( (TEunop (unop, etype) , t1)
                |_-> raise ( Erreur_typage (et , Tref, snd e))
             end
       end
