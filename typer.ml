@@ -410,14 +410,13 @@ and type_stmt env (s, loc ) = match s with
       let (_,st) as stype = type_if env s in
       (TSif (stype), st) 
       
-   |Sobj (m, i, i1, s) ->
+   |Saff (m, i, i1, s) ->
       let a = find.hastbl (i) in (* TODO codercette hastbl *)
       begin match a.len with 
          |s.len ->
             let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i)) in
             begin match r with 
-               |true -> (* regarder si c est bien une permutation ! *) 
-                  
+               |true -> (* regarder si c est bien une permutation ! *)    
             end
          |_ -> raise ( Erreur_len (s.len , a.len, snd s ))
       end
@@ -459,14 +458,18 @@ and rec type_bloc env (liste_instr, e_finale, loc) = match liste_instr with
             let (r, rtype) = type_bloc env (q, e_finale) in
             (structure ::r, rtype)
             
-         |Sobj (m, x, e) -> (* TODO sobj et Saff *)
+         |Sobj (m, x, e) -> 
             let (structure, et) as etype = type_expr env e in
             let nouvelles_variables = (Smap.add x (m, et ) (get_variables env)) in
             let nouvel_environnement = (nouvelles_variables, get_fonction env , get_structures env) in
+            let (structure_bloc,bt) as btype = type_bloc nouvel_environnement (q, e_finale) in 
+            (structure :: structure_bloc, bt )
             
-            let (structure_bloc,bt) as btype = type_bloc nouvel_environnement (Vbloc (q, e_finale)) in 
-            (TVbloc (structure :: structure_bloc, ), bt )
-        |Saff (m, x, _, _)->
+         |Saff (m, x, i, i1)-> (* TODO Saff *)
+            let (structure, et) as stype =type_stmt env i1 in (* a verifier + finir *)
+            let (structure_bloc, bt) as btype=type_bloc nouvel_environnement (q, e_finale) in
+            
+            (structure :: structure_bloc, bt)
       end
       
 
