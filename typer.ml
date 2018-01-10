@@ -25,7 +25,7 @@ exception Erreur_borrow of loc
 exception Erreur_struct_call of typ * ident * loc
 exception Erreur_not_mutable of loc
 
-(* TODO veriffier le chek des stmt avec None et le transformer en Tunit mais donc le chek aev st *)
+
 (*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident *)
 (* penser à la loc dans AST *)
 (* def la fonction check_bf *)
@@ -391,9 +391,11 @@ let type_decl_struct (i, i1) =
 let type decl_fun (i, arg, b, t)=
 
 and type_stmt env (s, loc ) = match s with 
-   |Sreturn e -> begin match e with 
-      |None -> (TSreturn e , Tunit )
-      |Some e1 -> (TSreturn e1 , Tunit)
+   |Sreturn e -> 
+      let (_,et) as etype= type_expr env e in
+      begin match e with 
+         |Tunit -> (TSreturn etype , Tunit )
+         |_  -> (TSreturn etype , Tunit)
       end 
    |Swhile ( e, e1 ) ->
       let (_, et) as etype =type_expr env e in
