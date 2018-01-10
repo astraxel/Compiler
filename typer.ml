@@ -2,8 +2,14 @@ open Ast
 
 module Smap = Map.Make (String)
 module Sset = Set.Make (String) 
-type Env = (bool, typ) Smap.t
-          
+type Env_variables = (bool, typ) Smap.t
+type Env_fonction = (typ list , typ) Smap.t
+type Env_structures = ((ident, typ) list )Smap.t 
+type Env = (Env_variables, Env_fonction, Env_structures)
+
+let get_variables (ev, _, _)= ev
+let get_fonction (_,ef,_) =ef
+let get_structures (_,_,es)=es
 
 exception Erreur_typage of typ * typ * loc
 exception Erreur_types_egaux of typ *loc *typ * loc
@@ -34,7 +40,9 @@ let rec type_adapte (t1, t2) =
       |_ -> false
  
 let rec check_uni (list_ident) =
-   raise ()
+   match list_ident with
+      |[] -> true
+      |x::r -> 
    
  
 let rec type_no_struct env (e, i) =
@@ -67,19 +75,31 @@ let rec type_no_borrow env (e ) =
          begin match check_no_borrow xt with (*TODO definir la fonction check_no_borrow *)
             |true -> type_no_borrow env (y::r)
             |false -> raise (Error_borrow (snd x))
-  
+let rec structure_list_with_constraint_bloc li_stmt type_cible =match li_stmt with
+   | [] -> []
+   |x::q -> let (type_pur_x, structure_x) = type_stmt x in
+      if type_cible = type_pur_x then
+         structure_x :: (type_list_with_constraint_bloc q)
+      else
+         raise (Error_typage (type_pur_x, type_cible, snd x))
+         
+let type_bloc li_stmt =match li_stmt with
+   |[] ->[]
+   |x::q -> let (type_pur_x, structure_x) =type_stmt x in
+      (structure_x :: (structure_list_with_constraint_bloc q type_pur), type_pur)
+      
 let rec structure_list_with_constraint li_expr type_cible = match li_expr with
-    | [] -> []
-    | x::q -> let (type_pur_x, structure_x) = type_expr x in
-        if type_cible = type_pur_x then
-            structure_x :: (type_list_with_constraint q)
-        else
-            raise (Error_typage (type_pur_x, type_cible, snd x))
+   | [] -> []
+   | x::q -> let (type_pur_x, structure_x) = type_expr x in
+       if type_cible = type_pur_x then
+           structure_x :: (type_list_with_constraint q)
+       else
+           raise (Error_typage (type_pur_x, type_cible, snd x))
 
 let type_list li_expr = match li_expr with
-    | [] -> ([], Vec (TUnit))
-    | x::q -> let (type_pur, structure_x) = type_expr x in
-        (structure_x :: (structure_list_with_constraint q type_pur), Vec (type_pur))
+   | [] -> ([], Vec (TUnit))
+   | x::q -> let (type_pur, structure_x) = type_expr x in
+       (structure_x :: (structure_list_with_constraint q type_pur), Vec (type_pur))
    
       
 let rec type_bf env (e)=
@@ -201,7 +221,6 @@ let type_mut_expr env (e, loc) = match e with
  
       
 let type_lvalue_expr env (e, loc ) = match e with 
-   (* deref done, deuxieme, crochet done, struct, struct bis done *)
    |Eident name -> 
       let (m, t) = Smap.find name env in
       (TEident (name), t)
@@ -447,11 +466,14 @@ and type_bloc env (b, loc) = match b with
          |Unit ->
             let (_,bt) as btype= type_bloc env b in
             (TVbloc (stype, btype), bt) (* { ; b} est du type de b *)
-         |Sexpr (_) | Swhile (_ , _) | Sreturn (_) |Sif (_)-> 
+         |Sexpr (e) | Swhile (e , b1) | Sreturn (e) |Sif (e)-> 
+            let (_,et) as etype =type_expr env e in 
             let (_,bt) as btype =type_bloc env b in
             (TVbloc (stype, btype), bt) (* {e ; b} est du type de b *)
          |Sobj (m, x, _) | Saff (m, x, _, _)->
-            let (_,bt) as btype =type_bloc (Smap.add (m*x) (type_stmt env s ) env) in (* TODO check si m*x est legit *)
+            let nouvelles_variables = (Smap.add x (type_stmt (get_variables env) s ) (get_variables env)) in
+            let nouvel_environnement = (nouvelles_variables, get_fonction env , get_structures env) in
+            let (_,bt) as btype =type_bloc nouvel_environnement in (* TODO check si m*x est legit *)
             (TVbloc (stype, btype), bt )
       end
       
@@ -487,92 +509,4 @@ and type_if env ( p, loc ) = match p with
          |_ -> raise (Erreur_typage (etype, Tbool, snd e)
       end
       
-      
-         
-   
-   
-  (*  type env = {
-   dec_vars : typ Smap.t ; (* associe à chaque variable son type *)
-   dec_typs : typ SImap.t ; (* associe à chaque variable dont le type est déclarée le type qu'elle dénote *)
-   def_funs : ((mode * typ) list * typ) Smap.t ;(*associe à chaque fonction son type de retour, la liste du type 
-   * et du mode de sesargs *)
-   dec_structs ((typ * int) Smap.t * (int *int)) Smap.t ;
-   structs_counter : int ;
-   borrowed_by : (ident list) BSmap.t; 
-   const_vars : Sset.t ;
-   idents : (dtyp * int ) Smap.t ; ;
-   level : int ;
-   
-  let empty_env name= 
-     let env = { dec_vars = Smap.empty ;
-                 dec_typs = SImap.empty ;
-                 def_funs = SImap.empty ;
-                 dec_structs = Smap.empty  ;
-                 structs_counter = 0 ;
-                 borrowed_by  = BSmap.empty ;
-                 const_vars : Sset.empty ;
-                 idents = Smap.empty ;
-                 level = 0 ;
-                 
-}
 
-let rec type_fun_call env is_exp i el loc =
-  let etl = List.map (fun x -> type_expr env x, snd x) el in
-  let ((pl, rt), level) = fun_of_ident i env in
-  if is_exp then match rt with
-     |Tunit -> raise (Erreur_types_egaux (rt, Tunit, loc))
-  else if rt <> Tunit then raise (Erreur_typage (rt, Tunit , loc))
-  
-  let lc = try List.combine etl pl with Invalid_argument _ ->
-    raise (Wrong_argument_number (List.length el, List.length pl, loc)) in
-  List.iter (fun (((exp, typ1), eloc), (mode, typ2)) ->
-    if mode = Minout then check_is_lvalue exp eloc env;
-    check_types_equal typ1 typ2 eloc) lc
-  (List.map (fun ((x, _), (m, _)) -> (x, m = Minout)) lc, rt, level)
-
-let fun_of_ident (i, loc) env =
-  try
-    let (dtyp, level) = Smap.find i env.idents in
-    if dtyp <> Dtyp_fun_def then raise Not_found;
-    Smap.find i env.def_funs, level
-  with Not_found -> raise (Undeclared (i, loc))
-  
- |Ecall (i, e1) ->
-    let (el, rt, level) = type_fun_call env true i el loc in
-    (TEcall ((fst i, level), el), rt)
-    
-    |
-
- |Eassignement (e1 , e2) -> 
-      let (_, e1t) as e1type =type_expr env e1 in
-      let (_, e2t) as e2type =type_expr env e2 in
-      | false -> let muterr' = match e1.e_tre
-         | Efield (_, idn) -> 
-            (idn.id_loc, Assign_immutable_field idn.id)
-         | Eid idn -> 
-            (e1.e_loc, Re_assignment idn.id) 
-         | _ -> 
-            (e1.e_loc, Invalid_left_hand)  
-         in 
-         begin try typ_lt ty2 ty1 with 
-            | Type -> raise_error e2.e_loc (Type_error (ty1, ty2));
-            | Life -> () 
-         end;
-         Tunit None, env2, Some muterr', tree1 
-         | true -> 
-            begin try typ_lt ty2 ty1 with 
-               | Type -> raise_error e2.e_loc (Type_error (ty1, ty2));
-               | Life ->  
-                  let id1 = exp_to_id e1 and id2 = get_br_id e2 in
-                  raise_error e2.e_loc (Live_not_long_enough (id2, id1)) end;
-            if is_id e1 then begin 
-               let Eid idn = e1.e_tree in
-               if alr_borrow env idn.id then 
-                  raise_error e.e_loc (Assign_already_borrowed idn.id) end;
-             let env3 = match e2.e_tree with
-                | Eid idn -> drop_var env idn
-                | _ -> env2 
-             in 
-             Tunit None, env3, None, to_addr tree1  
-
-*)
