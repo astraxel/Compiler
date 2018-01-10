@@ -1,4 +1,5 @@
-open Ast
+
+	open Ast
         open Tast
 	
 
@@ -402,10 +403,10 @@ and type_stmt env (s ) = match s with
         
    |Sreturn e -> 
       begin match e with 
-         |Sretu -> (TSreturn TSretu ), env
-         |Sret e1 -> 
+         |None -> (TSreturn None ), env
+         |Some e1 -> 
             let (_,e1t) as e1type=type_expr env e1 in
-            (TSreturn (TSret  (e1type))), env 
+            (TSreturn (Some  (e1type))), env 
       end 
    |Swhile ( e, e1 ) ->
       let (_, et) as etype =type_expr env e in
@@ -485,3 +486,4 @@ and type_list env li_expr = match li_expr with
    | [] -> ([], Tvec (Tunit))
    | x::q -> let (structure_x, type_pur) as etype = type_expr env (x) in
        (etype :: (structure_list_with_constraint env q type_pur), Tvec (type_pur)) 
+
