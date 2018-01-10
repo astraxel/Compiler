@@ -29,7 +29,7 @@ exception Erreur_not_mutable of loc
 (*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident *)
 (* penser à la loc dans AST *)
 (* def la fonction check_bf *)
-
+(* def la fonction check_unit, Type_no_struct, type_no_borrow, check_in, regarder si c'est une permu, Saff *)
 
 let rec deref_type t = if t =Tref (m, t1) then deref_type t1 else t
    
@@ -445,7 +445,7 @@ and rec type_bloc env (liste_instr, e_finale, loc) = match liste_instr with
                      |Tunit ->
                         let (r, rtype)  = type_bloc env (q, e_finale) in
                         (structure ::r, rtype)
-                     |_ -> raise (Error_typage (et, Tunit, (* TODO loc *))
+                     |_ -> raise (Error_typage (et, Tunit, snd e)
                   end
                |_ -> raise (Error_typage ( et, Tbool, snd e))
             end
