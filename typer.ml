@@ -39,8 +39,8 @@ let rec check_uni (list_ident) =
  
 let rec type_no_struct env (e, i) =
    match e with 
-      |Unit -> true
-      |x ->
+      |[] -> true
+      |x::[] ->
          let (_, xt) as xtype = type_expr env x in
          begin match xt with
             |Tstruct (i) -> (*TODO faire cttte partie avec le sous vec et verifie la gestion d'erreur *)
@@ -54,8 +54,8 @@ let rec type_no_struct env (e, i) =
             
 let rec type_no_borrow env (e ) =
    match e with
-      |Unit -> true
-      |x -> 
+      |[] -> true
+      |x::[] -> 
          let (_, xt) as xtype = type_expr env x in
          begin match check_no_borrow xt with (*TODO definir la fonction check_no_borrow *)
             |true -> true
@@ -67,11 +67,25 @@ let rec type_no_borrow env (e ) =
          begin match check_no_borrow xt with (*TODO definir la fonction check_no_borrow *)
             |true -> type_no_borrow env (y::r)
             |false -> raise (Error_borrow (snd x))
+  
+let rec structure_list_with_constraint li_expr type_cible = match li_expr with
+    | [] -> []
+    | x::q -> let (type_pur_x, structure_x) = type_expr x in
+        if type_cible = type_pur_x then
+            structure_x :: (type_list_with_constraint q)
+        else
+            raise (Error_typage (type_pur_x, type_cible, snd x))
+
+let type_list li_expr = match li_expr with
+    | [] -> ([], Vec (TUnit))
+    | x::q -> let (type_pur, structure_x) = type_expr x in
+        (structure_x :: (structure_list_with_constraint q type_pur), Vec (type_pur))
+   
       
 let rec type_bf env (e)=
    match e with 
-      |Unit -> true
-      |x ->
+      |[] -> true
+      |x::[] ->
          let (_, xt) as xtype =type_expr env x in 
          begin match check_bf xt with  (* TODO definir la fonction check_bf *)
             |true -> true
@@ -85,10 +99,10 @@ let rec type_bf env (e)=
             |false -> raise (Error_non_declare (xt, snd x))
          end
          
-let rec type_list env (e, loc) = 
+(* let rec type_list env (e, loc) = 
    match e with 
-      |Unit -> raise (Erreur_vide (loc))
-      |x -> 
+      |[] -> raise (Erreur_vide (loc))
+      |x::[] -> 
          let (_,xt) as xtype = type_expr env x in
          xt
       |x::y::r -> 
@@ -97,13 +111,13 @@ let rec type_list env (e, loc) =
          begin match xt with
             |yt -> type_list env (y::r, loc)
             |_ -> raise (Erreur_types_non_egaux (xt, snd x , yt, snd y))
-         end
+         end *)
          
 let rec type_arg_comparaison_list env (list_typ, list_expr) =
    match list_typ with 
-      |Unit -> true  
-      | x-> begin match list_expr with 
-         |y -> 
+      |[] -> true  
+      | x::[]-> begin match list_expr with 
+         |y::[] -> 
             let r =type_adapte (y, snd x) in
             begin match r with
                | true -> true (* Une valeur random pour verifier *)
@@ -127,9 +141,9 @@ let rec type_arg_comparaison_list env (list_typ, list_expr) =
    
 let rec type_arg_list env (list_typ, list_expr ) =
    match list_typ with 
-      |Unit -> true  
-      | x-> begin match list_expr with 
-         |y -> begin match snd x with
+      |-> true  
+      | x::[]-> begin match list_expr with 
+         |y::[] -> begin match snd x with
             | y -> true (* Une valeur random pour verifier *)
             | _ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * y )) (* verifier que snd fst x renvoie la loc de x *)
          end
@@ -182,16 +196,6 @@ let type_mut_expr env (e, loc) = match e with
                   (TEunop (unop, etype), t , b)
                |_ -> raise (Erreur_typage (et, Tref, snd e))
             end
-   |Eattribute (e, i) ->
-      let (a,et, b) as etype = type_mut_expr env e in
-      let t1 = deref_type et in
-      begin match t1 with 
-         |Tstruct  -> 
-            let t = check_in (et, i) in
-            (* TODO regarder si i est dans la struct associée à e avec une fonction qui renvoie le type associé a i et raise error sinon *)
-            (TEattribute (etype, ident), t, b)
-         |_ -> raise (Erreur_typage (et, Tstruct, snd e))
-      end
    |_ -> raise (Erreur_mut (e, snd e))
 
  
@@ -251,6 +255,14 @@ let type_expr env (e , loc) = match e with
    |Ebool b -> (TEbool b, Tbool)
    |Eunop ( unop , e) -> 
       | begin match unop with 
+         |Deref -> (*verifie si ce n'est pas une lvalue car lvalue implique value *)
+            let (_, et) as etype = type_expr env e in
+            begin match et with
+               |Tref (_, t) -> 
+                  let t1 = deref_type t in
+                  ( (TEunop (unop, etype) , t1)
+               |_-> raise ( Erreur_typage (et , Tref, snd e)) 
+            end
          |UMinus ->
             let (_, et) as etype=type_expr env e in
             begin match et with
@@ -314,7 +326,7 @@ let type_expr env (e , loc) = match e with
                      |false -> raise ( Erreur_mut (e1 , loc))
                      |true -> (TEbinop (e1type, e2type), Tunit ) 
                   end
-               |false -> raise -> Erreur_types_non_coherents (e1, snd e1, e2, snd e2))      
+               |false -> raise (Erreur_types_non_coherents (e1, snd e1, e2, snd e2))
       end
       
    |Elen e ->
@@ -326,8 +338,8 @@ let type_expr env (e , loc) = match e with
       end      
   
   | Evect e ->
-     let r=type_list env e in
-     (TEvect (type_expr env e),r)
+     let (struct, t)= type_list env e in
+     (TEvect (struct), t)
 
   |Eprint s -> (TEprint s , Tunit)
   
@@ -344,14 +356,7 @@ let type_expr env (e , loc) = match e with
   (* tout ce qui suit permet de vérifier si l'expression n'est pas une l value car implique que c'est une value normale *)   
    |Eunop (unop , e) ->
       begin match unop with 
-         |Deref ->
-            let (_, et) as etype = type_expr env e in
-            begin match et with
-               |Tref (_, t) -> 
-                  let t1 = deref_type t in
-                  ( (TEunop (unop, etype) , t1)
-               |_-> raise ( Erreur_typage (et , Tref, snd e))
-            end
+         
       end
    |Eselect (e1 , e2) ->
       let (_, e1t) as e1type =type_lvalue_expr env e1 in
