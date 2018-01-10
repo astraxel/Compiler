@@ -1,4 +1,4 @@
-CMO=lexer.cmo parser.cmo att.cmo typCheck.cmo typer.cmo compile.cmo x86_64.cmo main.cmo
+CMO=lexer.cmo parser.cmo typer.cmo compile.cmo x86_64.cmo main.cmo
 GENERATED = lexer.ml parser.ml parser.mli
 FLAGS=-annot -g
 
