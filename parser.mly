@@ -1,5 +1,3 @@
-
-
 %{
 	open Ast
 	exception Parsing_error of string
@@ -179,4 +177,3 @@ dec:
 prog :
 	|d = dec; p=prog {d::p}
 	|EOF {[]}
-
