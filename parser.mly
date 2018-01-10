@@ -1,14 +1,16 @@
 %{
 	open Ast
 	exception Parsing_error of string
-
 %}
 
 /* Déclaration des tokens */
 %token EOF LET MUT WHILE RETURN IF FN STRUCT ELSE
-%token LCB RCB LPAR RPAR DOT ENDSTMT AMPERSAND COMMA ARROWFIRST COLON EM LB RB
+%token LCB RCB LPAR RPAR DOT ENDSTMT COMMA ARROW COLON LB RB
+%token BORROW EM
 %token PLUS MINUS DIV TIMES MODULO
-%token EQUAL SUPERIOR OR INFERIOR
+%token OR AND
+%token EQUAL SUPERIOR INFERIOR SUPERIOR_EQUAL INFERIOR_EQUAL DIFFERENT
+%token AFFECT
 %token <bool> BOOL
 %token <int> INTEGER
 %token <string> IDENT
@@ -16,14 +18,15 @@
 
 /* Priorités et associativités des tokens */
 
-%left EQUAL
+
+%left AFFECT
 %left OR
 %left AND
-%nonassoc EQUAL_EQUAL DIFFERENT SUPERIOR SUPERIOR_EQUAL INFERIOR INFERIOR_EQUAL
+%nonassoc EQUAL SUPERIOR INFERIOR SUPERIOR_EQUAL INFERIOR_EQUAL DIFFERENT
 %left PLUS MINUS 
 %left TIMES DIV MODULO
-%nonassoc UMINUS AMPERSAND EM UTIMES
-%nonassoc ELEMENT
+%nonassoc UMINUS EM DEREF BORROW
+%nonassoc LB
 %nonassoc DOT
 
 /* Point d'entrée de la grammaire */
@@ -37,48 +40,62 @@
 /* Règles de grammaire */
 
 expr :
+	|e=vexpr {{expr = e;
+	           startpos = $startpos;
+	           endpos = $endpos;}}
+
+vexpr :   
+  |MINUS; e=expr {Eunop (UMinus, e)} %prec UMINUS
+  |EM; e=expr {Eunop (Not, e)}
+  |TIMES; e=expr {Eunop (Deref,e)} %prec DEREF
+  |BORROW; m=boption(MUT); e=expr {Eunop ((if m then MutBorrow else SharedBorrow), e)}
+   
+  |e1= expr; b=binop; e2=expr {Ebinop (e1,b,e2)}
+
+  |LPAR; e=vexpr; RPAR {e}
+  
+	|e=expr; DOT; i=IDENT {Eattribute (e,i)}
+  |e1= expr ; DOT ; i=IDENT; LPAR ; RPAR  {if i="len" then Elen (e1) else raise (Parsing_error "error")} /*
+rajouter les erreurs en temps voulu */ 
+  |e1= expr ; LB ; e2=expr ; RB {Eselect (e1, e2)} 
+  |i= IDENT ; LPAR ; e=l_expr ; RPAR  {Ecall (i, e)}
+  |b= bloc {Ebloc b}
+  |i=IDENT ; EM ; LB ; e=l_expr ; RB {if i="vec" then Evect (e) else raise (Parsing_error "error")}
+	|i=IDENT ; EM ; LPAR ; c=CHAIN ; RPAR {if i="print" then Eprint (c) else raise (Parsing_error "error")}
+	
   |i= INTEGER {Eint i}
   |ident = IDENT {Eident ident}
   |b=BOOL {Ebool b}
-  |e1=expr ; DOT ; i=IDENT {Eattribute (e1,i)} 
-  |MINUS; e=expr {Eunop (Minus, e)} %prec UMINUS 
-  |e1= expr; EQUAL; e2=expr {Ebinop (e1,Equal,e2)}
-  |e1= expr ; OR; OR; e2= expr {Ebinop (e1,Or,e2)}
-  |e1= expr ; AMPERSAND; AMPERSAND; e2= expr {Ebinop (e1,And,e2)} %prec AND
-  |e1= expr ; INFERIOR; EQUAL ; e2= expr {Ebinop (e1,Less_or_equal,e2)} %prec INFERIOR_EQUAL
-  |e1= expr ; INFERIOR ; e2= expr {Ebinop (e1,Less,e2)}
-  |e1= expr ; SUPERIOR; EQUAL ; e2= expr {Ebinop (e1,Greater_or_equal,e2)} %prec SUPERIOR_EQUAL
-  |e1= expr ; SUPERIOR ; e2= expr {Ebinop (e1,Greater,e2)}
-  |e1= expr ; EM; EQUAL ; e2= expr {Ebinop (e1,Not_equal,e2)} %prec DIFFERENT
-  |e1= expr ; EQUAL; EQUAL ; e2= expr {Ebinop (e1,Equal,e2)} %prec EQUAL_EQUAL
-  |e1= expr ; PLUS ; e2= expr {Ebinop (e1,Plus,e2)}
-  |e1= expr ; MINUS ; e2= expr {Ebinop (e1, Minus,e2)}
-  |e1= expr ; TIMES ; e2= expr {Ebinop (e1, Times,e2)}
-  |e1= expr ; DIV ; e2= expr {Ebinop (e1, Divide,e2)}
-  |e1= expr ; MODULO ; e2= expr {Ebinop (e1, Modulo,e2)}
-  |LPAR; e=expr; RPAR {e}
-  |e1= expr ; DOT ; i=IDENT; LPAR ; RPAR  {if i="len", Elen (e1)} /*
-rajouter les erreurs en temps voulu */
-  |e1= expr ; LB ; e2=expr ; RB {Eselect (e1, e2)}
-  |i= IDENT ; LPAR ; e=l_expr ; RPAR  {Ecall (i, e)}
-  |b= bloc {Ebloc b}
-  |vec ; EM ; LB ; e=l_expr ; RB {Evect (e)}
-  |print ; EM ; LPAR ; c=CHAIN ; RPAR {Eprint (c)}
-
-;
-
-
+  
+	
+%inline binop:
+	|AFFECT {Affect}
+	|OR {Or}
+	|AND {And} 
+	|INFERIOR_EQUAL {Less_or_equal} 
+	|INFERIOR {Less} 
+	|SUPERIOR_EQUAL {Greater_or_equal} 
+	|SUPERIOR {Greater}
+	|DIFFERENT {Not_equal} 
+	|EQUAL {Equal}
+	|PLUS {Plus}
+	|MINUS {Minus}
+	|TIMES {Times}
+	|DIV {Divide}
+	|MODULO {Modulo}	
+	
 l_expr:
-  |e=expr, l=l_expr {e::l}
-  |                 {[]}
+  |e=expr; COMMA; l=l_expr {e::l}
+  |e=expr									 {[e]}
+  |                 			 {[]}
 
 
 
 stmt:
 	|ENDSTMT {Unit}
 	|e=expr; ENDSTMT {Sexpr e}
-	|LET; m=boption(MUT); ident=IDENT; EQUAL; e=expr; ENDSTMT {Saff (m,ident,e)}
-	|LET; m=boption(MUT); name=IDENT; EQUAL; structure=IDENT; LCB; l=affect_attributes; ENDSTMT {Sobj (m,name,structure,l)}
+	|LET; m=boption(MUT); ident=IDENT; AFFECT; e=expr; ENDSTMT {Saff (m,ident,e)} 
+	|LET; m=boption(MUT); name=IDENT; AFFECT; structure=IDENT; LCB; l=affect_attributes; ENDSTMT {Sobj (m,name,structure,l)} 
 	|WHILE; e=expr; b=bloc {Swhile (e,b)}
 	|RETURN; r=return; ENDSTMT {Sreturn r}
 	|i = rule_if {Sif i}
@@ -93,6 +110,7 @@ return:
 affect_attributes:
 	|RCB {[]}
 	|i=IDENT; COLON; e=expr; COMMA; v=affect_attributes {(i,e)::v}
+	|i=IDENT; COLON; e=expr; RCB {[(i,e)]}
 
 	
 rule_if:
@@ -115,7 +133,7 @@ l_stmt:
 
 typ:
 	|i=IDENT; INFERIOR; t=typ; SUPERIOR {Tcons (i,t)}
-	|AMPERSAND; m=boption(MUT); t=typ {Tesp (m,t)}
+	|BORROW; m=boption(MUT); t=typ {Tesp (m,t)}
 	|i=IDENT {Tid i}
 
 
@@ -129,15 +147,15 @@ dec_fun:
 																												body=b;
 																												typ=t;}}
 
-
 l_arg:
 	|a=argument; COMMA; l=l_arg {a::l}
+	|a=argument                 {[a]}
 	|														{[]}
 
 
 dec_typ:
-	|LPAR; ARROWFIRST; SUPERIOR; t=typ; RPAR {Some t}
-	|																				{None}
+	|ARROW; t=typ {Some t}
+	|												  {None}
 
 
 dec_struct:
@@ -147,6 +165,7 @@ dec_struct:
 
 dec_attributes:
 	|i=IDENT; COLON; t=typ; COMMA; l=dec_attributes {(i,t)::l}
+	|i=IDENT; COLON; t=typ                          {[(i,t)]}
 	|																								{[]}
 
 	
@@ -157,4 +176,4 @@ dec:
 	
 prog :
 	|d = dec; p=prog {d::p}
-|EOF {[]}
+	|EOF {[]}
