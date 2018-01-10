@@ -75,18 +75,11 @@ let rec type_no_borrow env (e ) =
          begin match check_no_borrow xt with (*TODO definir la fonction check_no_borrow *)
             |true -> type_no_borrow env (y::r)
             |false -> raise (Error_borrow (snd x))
-let rec structure_list_with_constraint_bloc li_stmt type_cible =match li_stmt with
-   | [] -> []
-   |x::q -> let (type_pur_x, structure_x) = type_stmt x in
-      if type_cible = type_pur_x then
-         structure_x :: (type_list_with_constraint_bloc q)
-      else
-         raise (Error_typage (type_pur_x, type_cible, snd x))
-         
-let type_bloc li_stmt =match li_stmt with
+        
+let rec struct_list_bloc li_stmt =match li_stmt with
    |[] ->[]
    |x::q -> let (type_pur_x, structure_x) =type_stmt x in
-      (structure_x :: (structure_list_with_constraint_bloc q type_pur), type_pur)
+      (structure_x :: (structure_list_bloc q ))
       
 let rec structure_list_with_constraint li_expr type_cible = match li_expr with
    | [] -> []
@@ -450,15 +443,9 @@ and type_stmt env (s, loc ) = match s with
               
 
 and type_bloc env (b, loc) = match b with
-   |Ubloc (s) -> 
-      begin match s with
-         |Unit -> 
-            let (_, st) as stype = type_stmt env s in
-            (TUbloc (stype), Tunit)
-         |_ -> 
-            let (_,st) as stype = type_stmt env s in
-            (TUbloc (stype), st) (* { e } est du type de e *)
-      end   
+   |Ubloc (s) ->
+      let (r) =type_list_bloc (s) in
+      (TUbloc (r), Tunit ) (* { e } est du type de e *)   
    
    |Vbloc (s, b) -> 
       let (_, st) as stype = type_stmt env s in 
@@ -468,6 +455,7 @@ and type_bloc env (b, loc) = match b with
             (TVbloc (stype, btype), bt) (* { ; b} est du type de b *)
          |Sexpr (e) | Swhile (e , b1) | Sreturn (e) |Sif (e)-> 
             let (_,et) as etype =type_expr env e in 
+            let r = type_list_bloc ( 
             let (_,bt) as btype =type_bloc env b in
             (TVbloc (stype, btype), bt) (* {e ; b} est du type de b *)
          |Sobj (m, x, _) | Saff (m, x, _, _)->
