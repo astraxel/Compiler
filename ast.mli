@@ -8,8 +8,8 @@ type ident = string
 type mut = bool
 
 type loc = { 
-  fp : lexing.position
-  lp : lexing.position
+  fp : Lexing.position
+  lp : Lexing.position
 }
 
 type typ =
