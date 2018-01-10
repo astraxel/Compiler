@@ -29,7 +29,6 @@ exception Erreur_not_mutable of loc
 (*TODO les hashtbl, le e.x avec l histoire de regarder si ce st dans l ident *)
 (* penser à la loc dans AST *)
 (* def la fonction check_bf *)
-(* list lenght *)
 
 
 let rec deref_type t = if t =Tref (m, t1) then deref_type t1 else t
@@ -338,13 +337,13 @@ let type_expr env (e , loc) = match e with
   
   |Ecall (i, e) -> 
      let a = find.hastbl (i) in (* TODO coder cette hastbl *)
-     begin match a.len with
-        |e.len ->
+     begin match a.length with
+        |e.length ->
            let r = type_arg_comparaison_list env (a, e) in
            begin match r with 
               | true -> (TEcall (i, e), type de retour) (* TODO trouver ce type de retour *)
            end
-        |_ -> raise (Erreur_len (e.len , a.len, snd e))
+        |_ -> raise (Erreur_len (e.length , a.length, snd e))
      end
   (* tout ce qui suit permet de vérifier si l'expression n'est pas une l value car implique que c'est une value normale *)   
    |Eunop (unop , e) ->
@@ -374,14 +373,14 @@ let type_expr env (e , loc) = match e with
       end
    |Sobj (m, i, i1, s) ->
       let a = find.hastbl (i) in(* TODO codercette hastbl *)
-      begin match a.len with 
-         |s.len ->
+      begin match a.length with 
+         |s.length ->
             let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i)) in
             begin match r with 
                |true -> (* regarder si c est bien une permutation ! *) 
                   
             end
-         |_ -> raise ( Erreur_len (s.len , a.len, snd s ))
+         |_ -> raise ( Erreur_len (s.length , a.length, snd s ))
       end
   |_ -> raise (Erreur_no_expr (e, snd e)) 
   
@@ -412,13 +411,13 @@ and type_stmt env (s, loc ) = match s with
       
    |Saff (m, i, i1, s) ->
       let a = find.hastbl (i) in (* TODO codercette hastbl *)
-      begin match a.len with 
-         |s.len ->
+      begin match a.length with 
+         |s.length ->
             let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i)) in
             begin match r with 
                |true -> (* regarder si c est bien une permutation ! *)    
             end
-         |_ -> raise ( Erreur_len (s.len , a.len, snd s ))
+         |_ -> raise ( Erreur_len (s.length , a.length, snd s ))
       end
               
 
