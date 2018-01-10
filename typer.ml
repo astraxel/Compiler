@@ -75,15 +75,10 @@ let rec type_no_borrow env (e ) =
          begin match check_no_borrow xt with (*TODO definir la fonction check_no_borrow *)
             |true -> type_no_borrow env (y::r)
             |false -> raise (Error_borrow (snd x))
-        
-let rec struct_list_bloc li_stmt =match li_stmt with
-   |[] ->[]
-   |x::q -> let (type_pur_x, structure_x) =type_stmt x in
-      (structure_x :: (structure_list_bloc q ))
-      
+
 let rec structure_list_with_constraint li_expr type_cible = match li_expr with
    | [] -> []
-   | x::q -> let (type_pur_x, structure_x) = type_expr x in
+   | x::q -> let (type_pur_x, structure_x) = type_expr env x in
        if type_cible = type_pur_x then
            structure_x :: (type_list_with_constraint q)
        else
@@ -111,21 +106,7 @@ let rec type_bf env (e)=
             |true -> type_bf env (y::r) 
             |false -> raise (Error_non_declare (xt, snd x))
          end
-         
-(* let rec type_list env (e, loc) = 
-   match e with 
-      |[] -> raise (Erreur_vide (loc))
-      |x::[] -> 
-         let (_,xt) as xtype = type_expr env x in
-         xt
-      |x::y::r -> 
-         let (_, xt) as xtype =type_expr env x in
-         let (_, yt) as ytype = type_expr env y in
-         begin match xt with
-            |yt -> type_list env (y::r, loc)
-            |_ -> raise (Erreur_types_non_egaux (xt, snd x , yt, snd y))
-         end *)
-         
+
 let rec type_arg_comparaison_list env (list_typ, list_expr) =
    match list_typ with 
       |[] -> true  
@@ -134,7 +115,7 @@ let rec type_arg_comparaison_list env (list_typ, list_expr) =
             let r =type_adapte (y, snd x) in
             begin match r with
                | true -> true (* Une valeur random pour verifier *)
-               | false -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * y )) (* verifier que snd fst x renvoie la loc de x *)
+               | false -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * y )) 
             end
          end
       end 
@@ -148,7 +129,7 @@ let rec type_arg_comparaison_list env (list_typ, list_expr) =
                      |true  -> type_arg_list (y::r , z::o)
                      |false-> raise (Erreur_types_non_egaux (snd y * snd (fst y) * z ))
                   end
-            |false-> raise (Erreur_types_non_egaux (snd x * snd (fst x) * w )) (* De meme *)
+            |false-> raise (Erreur_types_non_egaux (snd x * snd (fst x) * w )) 
             end
          end
    
@@ -158,7 +139,7 @@ let rec type_arg_list env (list_typ, list_expr ) =
       | x::[]-> begin match list_expr with 
          |y::[] -> begin match snd x with
             | y -> true (* Une valeur random pour verifier *)
-            | _ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * y )) (* verifier que snd fst x renvoie la loc de x *)
+            | _ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * y )) 
          end
       end 
       | x::y::r -> begin match list_expr with 
@@ -167,7 +148,7 @@ let rec type_arg_list env (list_typ, list_expr ) =
                | z -> type_arg_list (y::r , z::o)
                |_ -> raise (Erreur_types_non_egaux (snd y * snd (fst y) * z ))
             end
-            |_ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * w )) (* De meme *)
+            |_ -> raise (Erreur_types_non_egaux (snd x * snd (fst x) * w )) 
          end
       end
 
@@ -442,27 +423,50 @@ and type_stmt env (s, loc ) = match s with
       end
               
 
-and type_bloc env (b, loc) = match b with
-   |Ubloc (s) ->
-      let (r) =type_list_bloc (s) in
-      (TUbloc (r), Tunit ) (* { e } est du type de e *)   
-   
-   |Vbloc (s, b) -> 
-      let (_, st) as stype = type_stmt env s in 
-      begin match s with 
-         |Unit ->
-            let (_,bt) as btype= type_bloc env b in
-            (TVbloc (stype, btype), bt) (* { ; b} est du type de b *)
-         |Sexpr (e) | Swhile (e , b1) | Sreturn (e) |Sif (e)-> 
-            let (_,et) as etype =type_expr env e in 
-            let r = type_list_bloc ( 
-            let (_,bt) as btype =type_bloc env b in
-            (TVbloc (stype, btype), bt) (* {e ; b} est du type de b *)
-         |Sobj (m, x, _) | Saff (m, x, _, _)->
-            let nouvelles_variables = (Smap.add x (type_stmt (get_variables env) s ) (get_variables env)) in
+and rec type_bloc env (liste_instr, e_finale, loc) = match liste_instr with
+   |[] ->
+         ([], type_expr env (e_finale)) 
+   |instr::q -> 
+      begin match instr with 
+         |Sexpr (e) ->
+            let (structure, _) = type_expr env e in
+            let (r, rtype)  = type_bloc env (q, e_finale) in
+            (structure ::r, rtype)
+         | Swhile (e , b1) ->
+            let (structure, et) as etype = type_expr env e in
+            begin match et with 
+               |Tbool -> 
+                  let r_list = list.rev b1 in
+                  let e_head = list.hd r_list in
+                  let b2_stmt = list.tl r_list in
+                  let b1_stmt = list. rev b2_stmt in
+                  let (rb, rbtype) = type_bloc env (b1_stmt, e_head) in 
+                  begin match rbtype with
+                     |Tunit ->
+                        let (r, rtype)  = type_bloc env (q, e_finale) in
+                        (structure ::r, rtype)
+                     |_ -> raise (Error_typage (et, Tunit, (* TODO loc *))
+                  end
+               |_ -> raise (Error_typage ( et, Tbool, snd e))
+            end
+         | Sreturn (e) -> (* A verif *)
+            let (structure, _) = type_expr env e in
+            let (r, rtype)  = type_bloc env (q, e_finale) in
+            (structure ::r, rtype)
+            
+         |Sif (e)-> 
+            let (structure, st) = type_if env (p, loc)
+            let (r, rtype) = type_bloc env (q, e_finale) in
+            (structure ::r, rtype)
+            
+         |Sobj (m, x, e) -> (* TODO sobj et Saff *)
+            let (structure, et) as etype = type_expr env e in
+            let nouvelles_variables = (Smap.add x (m, et ) (get_variables env)) in
             let nouvel_environnement = (nouvelles_variables, get_fonction env , get_structures env) in
-            let (_,bt) as btype =type_bloc nouvel_environnement in (* TODO check si m*x est legit *)
-            (TVbloc (stype, btype), bt )
+            
+            let (structure_bloc,bt) as btype = type_bloc nouvel_environnement (Vbloc (q, e_finale)) in 
+            (TVbloc (structure :: structure_bloc, ), bt )
+        |Saff (m, x, _, _)->
       end
       
 
