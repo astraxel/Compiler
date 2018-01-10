@@ -232,14 +232,14 @@ let type_lvalue_expr env (e, loc ) = match e with
       end
    |Sobj (m, i, i1, s) ->
       let a = find.hastbl (i) in(* TODO codercette hastbl *)
-      begin match a.len with 
-         |s.len ->
+      begin match a.length with 
+         |s.length ->
             let r =type_arg_list env (snd s (*ici c est e *), find.hastbl (i)) in
             begin match r with 
                |true -> (* regarder si c est bien une permutation ! *) 
                   
             end
-         |_ -> raise ( Erreur_len (s.len , a.len, snd s ))
+         |_ -> raise ( Erreur_len (s.length , a.length, snd s ))
       end
    |_ -> (Erreur_lvalue (e, snd e))
    
