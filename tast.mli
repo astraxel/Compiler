@@ -1,6 +1,6 @@
 type binop = Equal | Not_equal | Less | Greater | Less_or_equal
              | Greater_or_equal | And | Or |Plus | Minus | Times | Divide | Modulo | Affect
-                                                                                    
+                                                                         
 type unop = Not | UMinus | Deref | SharedBorrow | MutBorrow
 
 type ident = string
@@ -9,8 +9,8 @@ type tident = ident * int
             
 type mut = bool
 
-type typ = 
-   Tbool | Tint | Tunit | Tstruct of ident | Tvec of typ | Tref of mut*int
+type ttyp = 
+   Tbool | Tint | Tunit | Tstruct of ident | Tvec of ttyp | Tref of mut*ttyp
 
  
 type tdecl =
@@ -31,7 +31,7 @@ and tpif =
    |TBif of texpr * tbloc * tbloc (* if expr then bloc else bloc *)
    |TIif of texpr * tbloc * tpif (* if expr then bloc else pif *)
 
-and texpr = utexpr * typ (*utexpr = untyped expression*)
+and texpr = utexpr * ttyp (*utexpr = untyped expression*)
 
 and utexpr =
    |TEint of int
@@ -42,7 +42,7 @@ and utexpr =
    |TEattribute of texpr * ident (* pas sur de moi*)
    |TElen of texpr
    |TEselect of texpr * texpr
-   |TEcall of tident * texpr list
+   |TEcall of ident * texpr list
    |TEvect of texpr list  (* pas sur de moi *)
    |TEprint of string
    |TEbloc of tbloc
@@ -51,18 +51,18 @@ and tbloc =
    |TUbloc of tstmt list
    |TVbloc of tstmt list * texpr
 
-and targument = mut * tident * typ
+and targument = mut * tident * ttyp
 
 and tfichier =  tdecl list
 
 and tdecl_struct = {
    name : ident ;
-   attributes : (ident*typ) list;
+   attributes : (ident*ttyp) list;
 }
 
 and tdecl_fun = {
    name : ident ;
    arguments : targument list ;
    body : tbloc ;
-   typ : typ;
+   typ : ttyp;
 }
