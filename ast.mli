@@ -7,6 +7,11 @@ type ident = string
 
 type mut = bool
 
+type loc = { 
+  fp : lexing.position
+  lp : lexing.position
+}
+
 type typ =
   |Tid of ident
   |Tcons of ident*typ
@@ -16,9 +21,7 @@ type argument = mut * ident * typ
 
 type pos = Lexing.position
               
-type expr = {expr : vexpr;
-             startpos : pos;
-             endpos : pos;}
+type expr_loc = vexpr * loc
                     
 and vexpr =
   |Eint of int
@@ -39,7 +42,8 @@ and vexpr =
    |Ubloc of stmt list
    |Vbloc of stmt list * expr
                    
-
+ type stmt_loc = stmt * loc
+ 
  and stmt =
    |Unit
    |Sexpr of expr
@@ -48,7 +52,9 @@ and vexpr =
    |Swhile of expr * bloc
    |Sreturn of expr option
    |Sif of pif (*pif = if, mais c'est réservé*)
-
+   
+ type pif_loc = pif * loc
+ 
  and pif =
    |Aif of expr*bloc (* if expr then bloc *)
    |Bif of expr*bloc*bloc (* if expr then bloc else bloc *)
