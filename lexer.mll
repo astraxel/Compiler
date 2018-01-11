@@ -54,7 +54,7 @@ let number = digit+
 let letter = ['a'-'z' 'A'-'Z']
 let ident = letter (letter | digit | '_')*
 
-let character = [^  '"' '\\'] | "\\\"" | "\\\\" | "\\n"
+let character = [^  '"' '\\' '\n'] | "\\\"" | "\\\\"
 
 let space = [' ' '\t']*
 
@@ -71,7 +71,7 @@ rule token = parse
 	
 	|number as n {INTEGER (int_of_string n)}
 	
-	|'"' (character* as s) '"' {CHAIN s}
+	|'"' {let s = text lexbuf in CHAIN s}
 	
 	|eof {EOF}
 	
@@ -89,6 +89,12 @@ rule token = parse
 						Hashtbl.find special_characters c
 					with
 						Not_found -> raise (Lexing_error ("Caractère interdit : "^(String.make 1 c)))}
+						
+and text = parse
+	|'"' {""}
+	|'\n' {next_line lexbuf; let s = text lexbuf in "\n"^s}
+	|"\\n" {let s = text lexbuf in "\n"^s}
+	|(character* as s) {let s1 = text lexbuf in s^s1}
 					
 and line_comment = parse
 	|new_line {next_line lexbuf}

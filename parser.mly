@@ -42,7 +42,7 @@
 expr :
 	|e=vexpr {{expr = e;
 	           startpos = $startpos;
-	           endpos = $endpos;}}
+		   endpos = $endpos;}}
 
 vexpr :   
   |MINUS; e=expr {Eunop (UMinus, e)} %prec UMINUS
@@ -121,8 +121,8 @@ rule_if:
 
 bloc:
 	|LCB; r=l_stmt {let l,t=r in match t with
-												|None -> Ubloc l
-												|Some e -> Vbloc (l,e)}
+	|None -> Ubloc l
+	|Some e -> Vbloc (l,e)}
 
 
 l_stmt:

@@ -1,9 +1,4 @@
-type binop = Equal | Not_equal | Less | Greater | Less_or_equal
-             | Greater_or_equal | And | Or |Plus | Minus | Times | Divide | Modulo | Affect
-                                                                         
-type unop = Not | UMinus | Deref | SharedBorrow | MutBorrow
-
-type ident = string
+open Ast
            
 type tident = ident * int
             

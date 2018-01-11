@@ -205,12 +205,12 @@ let rec print_prog = function
 open Format
 open Lexing
    
-
 let parse_only = ref false
+let typ_only = ref false
 
 let print_pos file line startpos endpos=
   print_string "File \"";
-  print_string file;
+  print_string "test.rs";
   print_string "\", line ";
   print_int line; (*lb.lex_curr_p.pos_lnum;*)
   print_string ", character ";
@@ -235,8 +235,8 @@ let parse source =
   try
     let p = Parser.prog Lexer.token lb in
     close_in c;
-    print_prog p;
-    exit 0
+    print_string "parsing ok\n";
+    p
   with
   |Lexer.Lexing_error s ->
     print_pos_from_lexbuf lb;
@@ -247,17 +247,35 @@ let parse source =
     print_pos_from_lexbuf lb;
     print_string "Erreur de syntaxe\n";
     exit 1
+  |e -> raise e
 
+let typer source =
+  let t = Typer2.type_prog (parse source) in
+  print_string "typage ok \n";
+  t
 
+let compiler source =
+  Compile.compile source (typer source)
+
+let main_funct source =
+  if !parse_only then
+    let _ = parse source in ()
+  else
+    if !typ_only then
+      let _ = typer source in ()
+    else
+      let _ = compiler source in ()
   
 let main () =
   Arg.parse
     ["--parse-only", Arg.Set parse_only, "Option for parsing only";
+     "--type-only",  Arg.Set typ_only, "Option for typing only";
     ]
-    parse  
+    main_funct 
     ""  
 ;;
   
-main ()
+  main ();
+exit 0
 
        

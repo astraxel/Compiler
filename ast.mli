@@ -1,5 +1,5 @@
 type binop = Equal | Not_equal | Less | Greater | Less_or_equal
-             | Greater_or_equal | And | Or |Plus | Minus | Times | Divide | Modulo | Affect
+             | Greater_or_equal | And | Or |Plus | Minus | Times | Divide | Modulo| Affect
                                                                                                                              
 type unop = Not | UMinus | Deref | SharedBorrow | MutBorrow
 
@@ -33,7 +33,6 @@ and vexpr =
   |Evect of expr list
   |Eprint of string
   |Ebloc of bloc
-  |Eassignement of expr * expr
 
  and bloc =
    |Ubloc of stmt list

@@ -1,18 +1,6 @@
 open Ast
 open Tast
-
-(*module Idmap = Map.Make (struct type t=tident
-                               let compare=
-                                 fun x y ->
-                                 let (a,b)=x and (c,d)=y in
-                                 if a<c then -1
-                                 else if a>c then 1
-                                 else if b=d then 0
-                                 else if b<d then -1
-                                 else 1
-                         end)*)
-
-module Smap = Map.Make(String)             
+          
 
 type environnement = (string,int*bool*ttyp*int)  Hashtbl.t (*numero, mut, type, profondeur *)
 
@@ -30,8 +18,32 @@ let free_env env depth=
     if d>depth then None else Some value
   in
   Hashtbl.filter_map_inplace aux env
-         
-let rec type_prog = function
+
+let t_functions = Hashtbl.create 16
+
+let t_args_functions = Hashtbl.create 16
+
+let rec get_typ_arguments = function
+  |[] -> []
+  |a::q -> let _,_,t = a in (find_typ t)::(get_typ_arguments q)
+
+and compute_types_fun = function
+  |[] ->()
+  |a::q ->
+    begin
+      match a with
+      |Ddecl_struct s -> compute_types_fun q
+      |Ddecl_fun f ->
+        Hashtbl.add t_functions f.name (find_typ_fun f.typ);
+        Hashtbl.add t_args_functions f.name (get_typ_arguments f.arguments);
+        compute_types_fun q
+    end
+
+and type_prog p =
+  compute_types_fun p;
+  type_prog_after_init p
+   
+and type_prog_after_init = function
   |[] -> []
   |a::q ->
     begin
@@ -131,14 +143,14 @@ and type_stmt env depth tfun s = match s with
         else
           failwith "Mauvais return"
     end
-  |Sif i -> TSif (type_if env depth tfun i)
+  |Sif i -> TSif (fst (type_if env depth tfun i))
   |_ -> assert false
 
 and type_expr env depth tfun e = match e.expr with
   |Eint n -> (TEint n, Tint)
   |Ebool b -> (TEbool b, Tbool)
   |Eident i ->
-    let (n,_,t) = 
+    let (n,_,t) =
       begin
         try find_expr env depth i
         with Not_found -> failwith (i^" undefined in this scope")
@@ -148,12 +160,17 @@ and type_expr env depth tfun e = match e.expr with
   |Ebinop (e1,b,e2) ->
     let te1 = type_expr env depth tfun e1
     and te2 = type_expr env depth tfun e2 in
+    if b = Affect then assert (is_left_value env te1);
     type_binop te1 te2 b
   |Eunop (u,e) ->
     let te = type_expr env depth tfun e in
     type_unop te u
-  |Ecall (i,l) ->
-    assert false
+  |Ecall (f,l) ->
+    let l_ref = Hashtbl.find t_args_functions f in
+    let t = Hashtbl.find t_functions f in
+    let l_targs = type_args env depth tfun l in
+    assert (check_args_types l_targs l_ref);
+    TEcall (f,l_targs), t
   |Eprint s -> TEprint s, Tunit
   |Ebloc b ->
     let tb = type_bloc env (depth+1) tfun b in
@@ -164,6 +181,16 @@ and type_expr env depth tfun e = match e.expr with
     |TVbloc (l,e) -> snd e
     in
     TEbloc tb, t
+  |_ -> assert false
+
+and type_args env depth tfun l = match l with
+  |[] -> []
+  |e::q -> let te = type_expr env depth tfun e in
+           te::(type_args env depth tfun q)
+
+and check_args_types l_args l_ref = match l_args,l_ref with
+  |([],[]) -> true
+  |(te::q,tref::l) -> let t = snd te in (t=tref)&&(check_args_types q l)
   |_ -> assert false
 
 and type_binop te1 te2 b = match b with
@@ -177,7 +204,25 @@ and type_binop te1 te2 b = match b with
      assert ( (snd te1)=Tbool && (snd te2)=Tbool);
      TEbinop (te1,b,te2), Tbool
   |Affect ->
-    TEbinop (te1,b,te2), Tbool
+    TEbinop (te1,b,te2), Tunit
+
+and is_left_value env te = match (fst te) with
+  |TEident i -> let _,m,_,n = Hashtbl.find env (fst i) in (m && n=(snd i))
+  |TEunop (u,te) ->
+    begin
+      match u with
+      |UMinus |Not |SharedBorrow -> false
+      |MutBorrow -> true
+      |Deref -> let Tref(m,t) = snd te in m
+    end
+  |TEbloc b ->
+    begin
+      match b with
+      |TUbloc l -> false
+      |TVbloc (l,e) -> is_left_value env e
+    end
+  |_ -> false
+
            
 and type_unop te u = match u with
   |Not ->
@@ -204,12 +249,49 @@ and find_expr env depth id =
   else
     (n,m,t)
       
-and type_end_if env depth tfun i = assert false
 
 and type_bloc env depth tfun b = match b with
   |Ubloc l -> TUbloc (type_lstmt env false depth tfun l)
   |Vbloc (l,e) -> let tls = type_lstmt env false depth tfun l in
                   TVbloc (tls, type_expr env depth tfun e)
 
-and type_if env depth tfun i = assert false
+and type_if env depth tfun i = match i with
+  |Aif (e,b) ->
+    let te = type_expr env depth tfun e in
+    assert ((snd te) = Tbool);
+    let tb = type_bloc env (depth+1) tfun b in
+    free_env env depth;
+    begin
+      match tb with
+      |TUbloc l1 -> TAif(te,tb),Tunit
+      |TVbloc (l1,te1) -> assert (snd te1 = Tunit);  TAif(te,tb),Tunit
+    end
+  |Bif (e,b1,b2) ->
+    let te = type_expr env depth tfun e in
+    assert ((snd te) = Tbool);
+    let tb1 = type_bloc env (depth+1) tfun b1 in
+    free_env env depth;
+    let tb2 = type_bloc env (depth+1) tfun b2 in
+    free_env env depth;
+    let typ1, typ2 = get_type_tbloc tb1, get_type_tbloc tb2 in
+    assert (typ1=typ2);
+    TBif (te,tb1,tb2), typ1
+  |Iif (e,b,i) ->
+    let te = type_expr env depth tfun e in
+    assert ((snd te) = Tbool);
+    let tb = type_bloc env (depth+1) tfun b in
+    free_env env depth;
+    let ti, typ2 = type_if env depth tfun i in
+    let typ1 = get_type_tbloc tb in
+    assert (typ1=typ2);
+    TIif (te,tb,ti), typ1
+
+and type_end_if env depth tfun i =
+  assert false
+
+and get_type_tbloc tb1 =
+  match tb1 with
+  |TUbloc l1 -> Tunit
+  |TVbloc (l1,e1) -> snd e1
+
         
