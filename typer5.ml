@@ -41,8 +41,8 @@ let free_env env depth=
   let aux id value =
     let _,_,_,d = value in
     if d>depth then None else Some value
-  in Hashtbl.create
-  (*Hashtbl.filter_map_inplace aux env*)  
+  in
+  Hashtbl.filter_map_inplace aux env  
 
 let t_functions = Hashtbl.create 16
 
@@ -590,4 +590,4 @@ and structure_list_with_constraint env depth li_expr type_cible = match li_expr 
 and type_list env depth li_expr = match li_expr with
    | [] -> ([], Tvec (Tunit))
    | x::q -> let (structure_x, type_pur) as etype = type_expr env depth (x) in
-       (etype :: (structure_list_with_constraint env depth q type_pur), Tvec (type_pur)) 
+(etype :: (structure_list_with_constraint env depth q type_pur), Tvec (type_pur)) 
